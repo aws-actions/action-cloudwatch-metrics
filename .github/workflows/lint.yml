@@ -1,0 +1,23 @@
+name: "Lint action-cloudwatch-metrics"
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'releases/*'
+
+jobs:
+  lint:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - name: Setup Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+      - name: Run build and lint
+        run: |
+          npm ci
+          npm run build
+          npm run lint
