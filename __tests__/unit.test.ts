@@ -1,3 +1,4 @@
+import * as core from '@actions/core'
 import {checkStatusString, createMetricDatum, publishMetricData} from '../src/cw-build-status'
 import CloudWatch from 'aws-sdk/clients/cloudwatch'
 
@@ -38,7 +39,11 @@ describe('unit test suite', () => {
         }
       }
     })
-
+    jest.spyOn(core, 'getInput')
+        .mockReturnValueOnce('GithubCI')  // namespace
+        .mockReturnValueOnce('ros-tooling/action-cloudwatch-metrics')  // project-name
+        .mockReturnValueOnce('success')  // status
+        
     const metricNamespace = 'MyNamespace'
     const metricName = 'MyMetric'
     const projectName = 'MyProject'
@@ -46,6 +51,7 @@ describe('unit test suite', () => {
     const value = 1.0
     const datum = createMetricDatum(metricName, projectName, isCronJob, value)
     const metricData = [datum]
+    
     publishMetricData(metricNamespace, metricData)
     expect(CloudWatch.prototype.putMetricData).toBeCalled()
   })
