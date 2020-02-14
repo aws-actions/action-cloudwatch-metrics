@@ -17,6 +17,7 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v1
+    # Make sure the secrets are stored in you repo settings
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
@@ -25,16 +26,19 @@ jobs:
         aws-region: us-west-2
     - name: Build
       run: ./my-build-script.sh
+    # The failure should come before the success
     - name: Log Build Failure
-      uses: ./.github/actions/cw-build-status/
+      uses: ros-tooling/action-cloudwatch-metrics@0.0.1
       with:
         status: 'failure'
-      if: failure() && github.ref == 'refs/heads/master'
+      # An example conditional where logging only occurs for build
+      # failures on a scheduled event (like a nightly build)
+      if: failure() && github.event == 'schedule'
     - name: Log Build Success
-      uses: ./.github/actions/cw-build-status/
+      uses: ros-tooling/action-cloudwatch-metrics@0.0.1
       with:
         status: 'success'
-      if: success() && github.ref == 'refs/heads/master'
+      if: success() && github.event == 'schedule'
 ```
 
 ## CloudWatch Metrics format
