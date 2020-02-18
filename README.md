@@ -1,4 +1,6 @@
-# CW Build Status Github Action
+# Amazon CloudWatch Build Status Github Action
+
+[![GitHub Action Status](https://github.com/ros-tooling/action-cloudwatch-metrics/workflows/Test%20action-cloudwatch-metrics/badge.svg)](https://github.com/ros-tooling/action-cloudwatch-metrics)
 
 This action sends the status of a workflow step to CloudWatch Metrics.
 It does this by checking the failure or success status of the previous workflow step
