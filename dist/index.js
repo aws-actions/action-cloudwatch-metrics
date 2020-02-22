@@ -9529,7 +9529,7 @@ AWS.util.update(AWS, {
   /**
    * @constant
    */
-  VERSION: '2.615.0',
+  VERSION: '2.624.0',
 
   /**
    * @api private
@@ -12563,9 +12563,6 @@ exports.RequestError = RequestError;
 
 "use strict";
 
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
@@ -12576,13 +12573,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // Originally pulled from https://github.com/JasonEtco/actions-toolkit/blob/master/src/github.ts
 const graphql_1 = __webpack_require__(898);
-const rest_1 = __importDefault(__webpack_require__(0));
+const rest_1 = __webpack_require__(0);
 const Context = __importStar(__webpack_require__(262));
 const httpClient = __importStar(__webpack_require__(539));
 // We need this in order to extend Octokit
-rest_1.default.prototype = new rest_1.default();
+rest_1.Octokit.prototype = new rest_1.Octokit();
 exports.context = new Context.Context();
-class GitHub extends rest_1.default {
+class GitHub extends rest_1.Octokit {
     constructor(token, opts) {
         super(GitHub.getOctokitOptions(GitHub.disambiguate(token, opts)));
         this.graphql = GitHub.getGraphQL(GitHub.disambiguate(token, opts));
@@ -21710,6 +21707,9 @@ AWS.HttpRequest = inherit({
     var newEndpoint = new AWS.Endpoint(endpointStr);
     this.endpoint = newEndpoint;
     this.path = newEndpoint.path || '/';
+    if (this.headers['Host']) {
+      this.headers['Host'] = newEndpoint.host;
+    }
   }
 });
 
@@ -23550,7 +23550,7 @@ function Api(api, options) {
   property(this, 'abbreviation', api.metadata.serviceAbbreviation);
   property(this, 'fullName', api.metadata.serviceFullName);
   property(this, 'serviceId', api.metadata.serviceId);
-  if (serviceIdentifier) {
+  if (serviceIdentifier && metadata[serviceIdentifier]) {
       property(this, 'xmlNoDefaultLists', metadata[serviceIdentifier].xmlNoDefaultLists, false);
   }
 
@@ -45834,7 +45834,7 @@ function isFalsy(value) {
  * @param [object] request request object.
  * @api private
  */
-function isEndpointDiscoveryApplicable(request) {
+function isEndpointDiscoveryEnabled(request) {
   var service = request.service || {};
   if (service.config.endpointDiscoveryEnabled === true) return true;
 
@@ -45886,13 +45886,23 @@ function discoverEndpoint(request, done) {
   var service = request.service || {};
   if (hasCustomEndpoint(service) || request.isPresigned()) return done();
 
-  if (!isEndpointDiscoveryApplicable(request)) return done();
-
-  request.httpRequest.appendToUserAgent('endpoint-discovery');
-
   var operations = service.api.operations || {};
   var operationModel = operations[request.operation];
   var isEndpointDiscoveryRequired = operationModel ? operationModel.endpointDiscoveryRequired : 'NULL';
+  var isEnabled = isEndpointDiscoveryEnabled(request);
+
+  if (!isEnabled) {
+    // Unless endpoint discovery is required, SDK will fallback to normal regional endpoints.
+    if (isEndpointDiscoveryRequired === 'REQUIRED') {
+      throw util.error(new Error(), {
+        code: 'ConfigurationException',
+        message: 'Endpoint Discovery is not enabled but this operation requires it.'
+      });
+    }
+    return done();
+  }
+
+  request.httpRequest.appendToUserAgent('endpoint-discovery');
   switch (isEndpointDiscoveryRequired) {
     case 'OPTIONAL':
       optionalDiscoverEndpoint(request);

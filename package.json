@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "ncc build src/cw-build-status.ts -o dist",
-    "lint": "eslint --fix src/**.ts",
+    "lint": "eslint --fix src/*.ts __tests__/*.ts",
+    "precommit": "npm run build && npm run lint",
     "test": "tsc --noEmit && jest --coverage"
   },
   "author": "AWS RoboMaker",
@@ -34,7 +35,8 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run build && git add dist/index.js"
+      "pre-commit": "npm run precommit && git add dist/index.js"
     }
-  }
+  },
+  "eslintIgnore": ["node_modules/*", "coverage/*"]
 }
