@@ -23251,15 +23251,19 @@ const github = __importStar(__webpack_require__(469));
 const cloudwatch_1 = __importDefault(__webpack_require__(967));
 const cloudwatch = new cloudwatch_1.default();
 const context = github.context;
-const FAILED_BUILDS_METRIC_NAME = 'FailedBuilds';
-const NUM_BUILDS_METRIC_NAME = 'Builds';
-const SUCCESS_BUILDS_METRIC_NAME = 'SucceededBuilds';
-const PROJECT_DIMENSION = 'ProjectName';
-const IS_CRON_JOB_DIMENSION = 'IsCronJob';
-const SUCCESS_METRIC_VALUE = 1.0;
-const FAILED_METRIC_VALUE = 0.0;
+const EVENT_NAME_DIMENSION = 'EventName';
 const FAILED_BUILD_STATUS = 'failure';
+const FAILED_BUILDS_METRIC_NAME = 'FailedBuilds';
+const FAILED_METRIC_VALUE = 0.0;
+const IS_CRON_JOB_DIMENSION = 'IsCronJob';
+const NUM_BUILDS_METRIC_NAME = 'Builds';
+const PROJECT_DIMENSION = 'ProjectName';
+const REPOSITORY_DIMENSION = 'Repository';
+const REFERENCE_DIMENSION = 'Reference';
 const SCHEDULE_EVENT_NAME = 'schedule';
+const SUCCESS_BUILDS_METRIC_NAME = 'SucceededBuilds';
+const SUCCESS_METRIC_VALUE = 1.0;
+const WORKFLOW_DIMENSION = 'Workflow';
 function checkStatusString(status) {
     const validBuildStatusCheck = new RegExp('(success|failure)');
     if (!status.match(validBuildStatusCheck)) {
@@ -23273,8 +23277,12 @@ function createMetricDatum(metricName, projectName, isCronJob, value) {
         'MetricName': metricName,
         'Value': value,
         'Dimensions': [
+            { 'Name': EVENT_NAME_DIMENSION, 'Value': context.eventName },
+            { 'Name': IS_CRON_JOB_DIMENSION, 'Value': cronJobString },
             { 'Name': PROJECT_DIMENSION, 'Value': projectName },
-            { 'Name': IS_CRON_JOB_DIMENSION, 'Value': cronJobString }
+            { 'Name': REFERENCE_DIMENSION, 'Value': context.ref },
+            { 'Name': REPOSITORY_DIMENSION, 'Value': context.repo.repo },
+            { 'Name': WORKFLOW_DIMENSION, 'Value': context.workflow },
         ]
     };
     return metric_datum;
