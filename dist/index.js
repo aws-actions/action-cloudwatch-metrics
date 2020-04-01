@@ -668,7 +668,12 @@ AWS.SharedIniFileCredentials = AWS.util.inherit(AWS.Credentials, {
 /* 31 */,
 /* 32 */,
 /* 33 */,
-/* 34 */,
+/* 34 */
+/***/ (function(module) {
+
+module.exports = require("https");
+
+/***/ }),
 /* 35 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -2382,7 +2387,7 @@ module.exports = function nodeRNG() {
 var net = __webpack_require__(631);
 var tls = __webpack_require__(16);
 var http = __webpack_require__(605);
-var https = __webpack_require__(211);
+var https = __webpack_require__(34);
 var events = __webpack_require__(614);
 var assert = __webpack_require__(357);
 var util = __webpack_require__(669);
@@ -5157,9 +5162,32 @@ module.exports = require("dgram");
 
 /***/ }),
 /* 211 */
-/***/ (function(module) {
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
 
-module.exports = require("https");
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var osName = _interopDefault(__webpack_require__(2));
+
+function getUserAgent() {
+  try {
+    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
+  } catch (error) {
+    if (/wmic os get Caption/.test(error.message)) {
+      return "Windows <version undetectable>";
+    }
+
+    return "<environment undetectable>";
+  }
+}
+
+exports.getUserAgent = getUserAgent;
+//# sourceMappingURL=index.js.map
+
 
 /***/ }),
 /* 212 */,
@@ -5197,7 +5225,7 @@ module.exports = AWS.CognitoIdentity;
 /* 215 */
 /***/ (function(module) {
 
-module.exports = {"_args":[["@octokit/rest@16.43.1","/home/ANT.AMAZON.COM/allabana/develop/aws-repos/action-cloudwatch-metrics"]],"_from":"@octokit/rest@16.43.1","_id":"@octokit/rest@16.43.1","_inBundle":false,"_integrity":"sha512-gfFKwRT/wFxq5qlNjnW2dh+qh74XgTQ2B179UX5K1HYCluioWj8Ndbgqw2PVqa1NnVJkGHp2ovMpVn/DImlmkw==","_location":"/@octokit/rest","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"@octokit/rest@16.43.1","name":"@octokit/rest","escapedName":"@octokit%2frest","scope":"@octokit","rawSpec":"16.43.1","saveSpec":null,"fetchSpec":"16.43.1"},"_requiredBy":["/@actions/github"],"_resolved":"https://registry.npmjs.org/@octokit/rest/-/rest-16.43.1.tgz","_spec":"16.43.1","_where":"/home/ANT.AMAZON.COM/allabana/develop/aws-repos/action-cloudwatch-metrics","author":{"name":"Gregor Martynus","url":"https://github.com/gr2m"},"bugs":{"url":"https://github.com/octokit/rest.js/issues"},"bundlesize":[{"path":"./dist/octokit-rest.min.js.gz","maxSize":"33 kB"}],"contributors":[{"name":"Mike de Boer","email":"info@mikedeboer.nl"},{"name":"Fabian Jakobs","email":"fabian@c9.io"},{"name":"Joe Gallo","email":"joe@brassafrax.com"},{"name":"Gregor Martynus","url":"https://github.com/gr2m"}],"dependencies":{"@octokit/auth-token":"^2.4.0","@octokit/plugin-paginate-rest":"^1.1.1","@octokit/plugin-request-log":"^1.0.0","@octokit/plugin-rest-endpoint-methods":"2.4.0","@octokit/request":"^5.2.0","@octokit/request-error":"^1.0.2","atob-lite":"^2.0.0","before-after-hook":"^2.0.0","btoa-lite":"^1.0.0","deprecation":"^2.0.0","lodash.get":"^4.4.2","lodash.set":"^4.3.2","lodash.uniq":"^4.5.0","octokit-pagination-methods":"^1.1.0","once":"^1.4.0","universal-user-agent":"^4.0.0"},"description":"GitHub REST API client for Node.js","devDependencies":{"@gimenete/type-writer":"^0.1.3","@octokit/auth":"^1.1.1","@octokit/fixtures-server":"^5.0.6","@octokit/graphql":"^4.2.0","@types/node":"^13.1.0","bundlesize":"^0.18.0","chai":"^4.1.2","compression-webpack-plugin":"^3.1.0","cypress":"^3.0.0","glob":"^7.1.2","http-proxy-agent":"^4.0.0","lodash.camelcase":"^4.3.0","lodash.merge":"^4.6.1","lodash.upperfirst":"^4.3.1","lolex":"^5.1.2","mkdirp":"^1.0.0","mocha":"^7.0.1","mustache":"^4.0.0","nock":"^11.3.3","npm-run-all":"^4.1.2","nyc":"^15.0.0","prettier":"^1.14.2","proxy":"^1.0.0","semantic-release":"^17.0.0","sinon":"^8.0.0","sinon-chai":"^3.0.0","sort-keys":"^4.0.0","string-to-arraybuffer":"^1.0.0","string-to-jsdoc-comment":"^1.0.0","typescript":"^3.3.1","webpack":"^4.0.0","webpack-bundle-analyzer":"^3.0.0","webpack-cli":"^3.0.0"},"files":["index.js","index.d.ts","lib","plugins"],"homepage":"https://github.com/octokit/rest.js#readme","keywords":["octokit","github","rest","api-client"],"license":"MIT","name":"@octokit/rest","nyc":{"ignore":["test"]},"publishConfig":{"access":"public"},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"repository":{"type":"git","url":"git+https://github.com/octokit/rest.js.git"},"scripts":{"build":"npm-run-all build:*","build:browser":"npm-run-all build:browser:*","build:browser:development":"webpack --mode development --entry . --output-library=Octokit --output=./dist/octokit-rest.js --profile --json > dist/bundle-stats.json","build:browser:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=Octokit --output-path=./dist --output-filename=octokit-rest.min.js --devtool source-map","build:ts":"npm run -s update-endpoints:typescript","coverage":"nyc report --reporter=html && open coverage/index.html","generate-bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","lint":"prettier --check '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","lint:fix":"prettier --write '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","postvalidate:ts":"tsc --noEmit --target es6 test/typescript-validate.ts","prebuild:browser":"mkdirp dist/","pretest":"npm run -s lint","prevalidate:ts":"npm run -s build:ts","start-fixtures-server":"octokit-fixtures-server","test":"nyc mocha test/mocha-node-setup.js \"test/*/**/*-test.js\"","test:browser":"cypress run --browser chrome","update-endpoints":"npm-run-all update-endpoints:*","update-endpoints:fetch-json":"node scripts/update-endpoints/fetch-json","update-endpoints:typescript":"node scripts/update-endpoints/typescript","validate:ts":"tsc --target es6 --noImplicitAny index.d.ts"},"types":"index.d.ts","version":"16.43.1"};
+module.exports = {"_from":"@octokit/rest@^16.43.1","_id":"@octokit/rest@16.43.1","_inBundle":false,"_integrity":"sha512-gfFKwRT/wFxq5qlNjnW2dh+qh74XgTQ2B179UX5K1HYCluioWj8Ndbgqw2PVqa1NnVJkGHp2ovMpVn/DImlmkw==","_location":"/@octokit/rest","_phantomChildren":{"@octokit/types":"2.5.1","deprecation":"2.3.1","once":"1.4.0"},"_requested":{"type":"range","registry":true,"raw":"@octokit/rest@^16.43.1","name":"@octokit/rest","escapedName":"@octokit%2frest","scope":"@octokit","rawSpec":"^16.43.1","saveSpec":null,"fetchSpec":"^16.43.1"},"_requiredBy":["/@actions/github"],"_resolved":"https://registry.npmjs.org/@octokit/rest/-/rest-16.43.1.tgz","_shasum":"3b11e7d1b1ac2bbeeb23b08a17df0b20947eda6b","_spec":"@octokit/rest@^16.43.1","_where":"/home/ANT.AMAZON.COM/tmoulard/action/action-cloudwatch-metrics/node_modules/@actions/github","author":{"name":"Gregor Martynus","url":"https://github.com/gr2m"},"bugs":{"url":"https://github.com/octokit/rest.js/issues"},"bundleDependencies":false,"bundlesize":[{"path":"./dist/octokit-rest.min.js.gz","maxSize":"33 kB"}],"contributors":[{"name":"Mike de Boer","email":"info@mikedeboer.nl"},{"name":"Fabian Jakobs","email":"fabian@c9.io"},{"name":"Joe Gallo","email":"joe@brassafrax.com"},{"name":"Gregor Martynus","url":"https://github.com/gr2m"}],"dependencies":{"@octokit/auth-token":"^2.4.0","@octokit/plugin-paginate-rest":"^1.1.1","@octokit/plugin-request-log":"^1.0.0","@octokit/plugin-rest-endpoint-methods":"2.4.0","@octokit/request":"^5.2.0","@octokit/request-error":"^1.0.2","atob-lite":"^2.0.0","before-after-hook":"^2.0.0","btoa-lite":"^1.0.0","deprecation":"^2.0.0","lodash.get":"^4.4.2","lodash.set":"^4.3.2","lodash.uniq":"^4.5.0","octokit-pagination-methods":"^1.1.0","once":"^1.4.0","universal-user-agent":"^4.0.0"},"deprecated":false,"description":"GitHub REST API client for Node.js","devDependencies":{"@gimenete/type-writer":"^0.1.3","@octokit/auth":"^1.1.1","@octokit/fixtures-server":"^5.0.6","@octokit/graphql":"^4.2.0","@types/node":"^13.1.0","bundlesize":"^0.18.0","chai":"^4.1.2","compression-webpack-plugin":"^3.1.0","cypress":"^3.0.0","glob":"^7.1.2","http-proxy-agent":"^4.0.0","lodash.camelcase":"^4.3.0","lodash.merge":"^4.6.1","lodash.upperfirst":"^4.3.1","lolex":"^5.1.2","mkdirp":"^1.0.0","mocha":"^7.0.1","mustache":"^4.0.0","nock":"^11.3.3","npm-run-all":"^4.1.2","nyc":"^15.0.0","prettier":"^1.14.2","proxy":"^1.0.0","semantic-release":"^17.0.0","sinon":"^8.0.0","sinon-chai":"^3.0.0","sort-keys":"^4.0.0","string-to-arraybuffer":"^1.0.0","string-to-jsdoc-comment":"^1.0.0","typescript":"^3.3.1","webpack":"^4.0.0","webpack-bundle-analyzer":"^3.0.0","webpack-cli":"^3.0.0"},"files":["index.js","index.d.ts","lib","plugins"],"homepage":"https://github.com/octokit/rest.js#readme","keywords":["octokit","github","rest","api-client"],"license":"MIT","name":"@octokit/rest","nyc":{"ignore":["test"]},"publishConfig":{"access":"public"},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"repository":{"type":"git","url":"git+https://github.com/octokit/rest.js.git"},"scripts":{"build":"npm-run-all build:*","build:browser":"npm-run-all build:browser:*","build:browser:development":"webpack --mode development --entry . --output-library=Octokit --output=./dist/octokit-rest.js --profile --json > dist/bundle-stats.json","build:browser:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=Octokit --output-path=./dist --output-filename=octokit-rest.min.js --devtool source-map","build:ts":"npm run -s update-endpoints:typescript","coverage":"nyc report --reporter=html && open coverage/index.html","generate-bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","lint":"prettier --check '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","lint:fix":"prettier --write '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","postvalidate:ts":"tsc --noEmit --target es6 test/typescript-validate.ts","prebuild:browser":"mkdirp dist/","pretest":"npm run -s lint","prevalidate:ts":"npm run -s build:ts","start-fixtures-server":"octokit-fixtures-server","test":"nyc mocha test/mocha-node-setup.js \"test/*/**/*-test.js\"","test:browser":"cypress run --browser chrome","update-endpoints":"npm-run-all update-endpoints:*","update-endpoints:fetch-json":"node scripts/update-endpoints/fetch-json","update-endpoints:typescript":"node scripts/update-endpoints/typescript","validate:ts":"tsc --target es6 --noImplicitAny index.d.ts"},"types":"index.d.ts","version":"16.43.1"};
 
 /***/ }),
 /* 216 */,
@@ -5934,6 +5962,7 @@ AWS.config = new AWS.Config();
 // ignored, since we can never get coverage for them.
 var assert = __webpack_require__(357)
 var signals = __webpack_require__(654)
+var isWin = /^win/i.test(process.platform)
 
 var EE = __webpack_require__(614)
 /* istanbul ignore if */
@@ -6023,6 +6052,11 @@ signals.forEach(function (sig) {
       /* istanbul ignore next */
       emit('afterexit', null, sig)
       /* istanbul ignore next */
+      if (isWin && sig === 'SIGHUP') {
+        // "SIGHUP" throws an `ENOSYS` error on Windows,
+        // so use a supported signal instead
+        sig = 'SIGINT'
+      }
       process.kill(process.pid, sig)
     }
   }
@@ -7713,7 +7747,7 @@ function coerce (version) {
 
 module.exports = authenticationRequestError;
 
-const { RequestError } = __webpack_require__(463);
+const { RequestError } = __webpack_require__(497);
 
 function authenticationRequestError(state, error, options) {
   if (!error.headers) throw error;
@@ -8585,7 +8619,7 @@ module.exports = JsonBuilder;
 
 module.exports = validate;
 
-const { RequestError } = __webpack_require__(463);
+const { RequestError } = __webpack_require__(497);
 const get = __webpack_require__(854);
 const set = __webpack_require__(883);
 
@@ -8740,7 +8774,7 @@ function validate(octokit, options) {
 
 module.exports = authenticationRequestError;
 
-const { RequestError } = __webpack_require__(463);
+const { RequestError } = __webpack_require__(497);
 
 function authenticationRequestError(state, error, options) {
   /* istanbul ignore next */
@@ -8969,7 +9003,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var isPlainObject = _interopDefault(__webpack_require__(696));
-var universalUserAgent = __webpack_require__(796);
+var universalUserAgent = __webpack_require__(562);
 
 function lowercaseKeys(object) {
   if (!object) {
@@ -9319,7 +9353,7 @@ function withDefaults(oldDefaults, newDefaults) {
   });
 }
 
-const VERSION = "5.5.2";
+const VERSION = "6.0.0";
 
 const userAgent = `octokit-endpoint.js/${VERSION} ${universalUserAgent.getUserAgent()}`; // DEFAULTS has all properties set that EndpointOptions has, except url.
 // So we use RequestParameters and add method as additional required property.
@@ -9529,7 +9563,7 @@ AWS.util.update(AWS, {
   /**
    * @constant
    */
-  VERSION: '2.624.0',
+  VERSION: '2.650.0',
 
   /**
    * @api private
@@ -10507,7 +10541,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 var Stream = _interopDefault(__webpack_require__(413));
 var http = _interopDefault(__webpack_require__(605));
 var Url = _interopDefault(__webpack_require__(835));
-var https = _interopDefault(__webpack_require__(211));
+var https = _interopDefault(__webpack_require__(34));
 var zlib = _interopDefault(__webpack_require__(761));
 
 // Based on https://github.com/tmpvar/jsdom/blob/aa85b2abf07766ff7bf5c1f6daafb3726f2f2db5/lib/jsdom/living/blob.js
@@ -12436,7 +12470,7 @@ exports.FetchError = FetchError;
 /* 461 */
 /***/ (function(module) {
 
-module.exports = {"version":2,"waiters":{"AlarmExists":{"delay":5,"maxAttempts":40,"operation":"DescribeAlarms","acceptors":[{"matcher":"path","expected":true,"argument":"length(MetricAlarms[]) > `0`","state":"success"}]}}};
+module.exports = {"version":2,"waiters":{"AlarmExists":{"delay":5,"maxAttempts":40,"operation":"DescribeAlarms","acceptors":[{"matcher":"path","expected":true,"argument":"length(MetricAlarms[]) > `0`","state":"success"}]},"CompositeAlarmExists":{"delay":5,"maxAttempts":40,"operation":"DescribeAlarms","acceptors":[{"matcher":"path","expected":true,"argument":"length(CompositeAlarms[]) > `0`","state":"success"}]}}};
 
 /***/ }),
 /* 462 */
@@ -12765,6 +12799,13 @@ exports.setFailed = setFailed;
 //-----------------------------------------------------------------------
 // Logging Commands
 //-----------------------------------------------------------------------
+/**
+ * Gets whether Actions Step Debug is on or not
+ */
+function isDebug() {
+    return process.env['RUNNER_DEBUG'] === '1';
+}
+exports.isDebug = isDebug;
 /**
  * Writes debug message to user log
  * @param message debug message
@@ -13676,7 +13717,68 @@ module.exports = XmlBuilder;
 /* 494 */,
 /* 495 */,
 /* 496 */,
-/* 497 */,
+/* 497 */
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var deprecation = __webpack_require__(692);
+var once = _interopDefault(__webpack_require__(969));
+
+const logOnce = once(deprecation => console.warn(deprecation));
+/**
+ * Error with extra properties to help with debugging
+ */
+
+class RequestError extends Error {
+  constructor(message, statusCode, options) {
+    super(message); // Maintains proper stack trace (only available on V8)
+
+    /* istanbul ignore next */
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
+
+    this.name = "HttpError";
+    this.status = statusCode;
+    Object.defineProperty(this, "code", {
+      get() {
+        logOnce(new deprecation.Deprecation("[@octokit/request-error] `error.code` is deprecated, use `error.status`."));
+        return statusCode;
+      }
+
+    });
+    this.headers = options.headers || {}; // redact request credentials without mutating original request options
+
+    const requestCopy = Object.assign({}, options.request);
+
+    if (options.request.headers.authorization) {
+      requestCopy.headers = Object.assign({}, options.request.headers, {
+        authorization: options.request.headers.authorization.replace(/ .*$/, " [REDACTED]")
+      });
+    }
+
+    requestCopy.url = requestCopy.url // client_id & client_secret can be passed as URL query parameters to increase rate limit
+    // see https://developer.github.com/v3/#increasing-the-unauthenticated-rate-limit-for-oauth-applications
+    .replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]") // OAuth tokens can be passed as URL query parameters, although it is not recommended
+    // see https://developer.github.com/v3/#oauth2-token-sent-in-a-header
+    .replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
+    this.request = requestCopy;
+  }
+
+}
+
+exports.RequestError = RequestError;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 498 */,
 /* 499 */,
 /* 500 */,
@@ -14298,6 +14400,7 @@ AWS.Service = inherit({
       case 'RequestThrottledException':
       case 'TooManyRequestsException':
       case 'TransactionInProgressException': //dynamodb
+      case 'EC2ThrottledException':
         return true;
       default:
         return false;
@@ -14513,7 +14616,7 @@ module.exports = AWS.Service;
 /* 504 */
 /***/ (function(module) {
 
-module.exports = {"pagination":{"DescribeAlarmHistory":{"input_token":"NextToken","limit_key":"MaxRecords","output_token":"NextToken","result_key":"AlarmHistoryItems"},"DescribeAlarms":{"input_token":"NextToken","limit_key":"MaxRecords","output_token":"NextToken","result_key":"MetricAlarms"},"DescribeAlarmsForMetric":{"result_key":"MetricAlarms"},"DescribeInsightRules":{"input_token":"NextToken","limit_key":"MaxResults","output_token":"NextToken"},"GetMetricData":{"input_token":"NextToken","limit_key":"MaxDatapoints","output_token":"NextToken","result_key":["MetricDataResults","Messages"]},"ListDashboards":{"input_token":"NextToken","output_token":"NextToken","result_key":"DashboardEntries"},"ListMetrics":{"input_token":"NextToken","output_token":"NextToken","result_key":"Metrics"}}};
+module.exports = {"pagination":{"DescribeAlarmHistory":{"input_token":"NextToken","limit_key":"MaxRecords","output_token":"NextToken","result_key":"AlarmHistoryItems"},"DescribeAlarms":{"input_token":"NextToken","limit_key":"MaxRecords","output_token":"NextToken","result_key":["MetricAlarms","CompositeAlarms"]},"DescribeAlarmsForMetric":{"result_key":"MetricAlarms"},"DescribeInsightRules":{"input_token":"NextToken","limit_key":"MaxResults","output_token":"NextToken"},"GetMetricData":{"input_token":"NextToken","limit_key":"MaxDatapoints","output_token":"NextToken","result_key":["MetricDataResults","Messages"]},"ListDashboards":{"input_token":"NextToken","output_token":"NextToken","result_key":"DashboardEntries"},"ListMetrics":{"input_token":"NextToken","output_token":"NextToken","result_key":"Metrics"}}};
 
 /***/ }),
 /* 505 */,
@@ -14770,7 +14873,7 @@ function hasFirstPage (link) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const url = __webpack_require__(835);
 const http = __webpack_require__(605);
-const https = __webpack_require__(211);
+const https = __webpack_require__(34);
 const pm = __webpack_require__(950);
 let tunnel;
 var HttpCodes;
@@ -15772,7 +15875,35 @@ function hasPreviousPage (link) {
 /***/ }),
 /* 560 */,
 /* 561 */,
-/* 562 */,
+/* 562 */
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+var osName = _interopDefault(__webpack_require__(2));
+
+function getUserAgent() {
+  try {
+    return `Node.js/${process.version.substr(1)} (${osName()}; ${process.arch})`;
+  } catch (error) {
+    if (/wmic os get Caption/.test(error.message)) {
+      return "Windows <version undetectable>";
+    }
+
+    return "<environment undetectable>";
+  }
+}
+
+exports.getUserAgent = getUserAgent;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
 /* 563 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -17306,7 +17437,7 @@ AWS.EventListeners = {
       req.service.config.getCredentials(function(err) {
         if (err) {
           req.response.error = AWS.util.error(err,
-            {code: 'CredentialsError', message: 'Missing credentials in config'});
+            {code: 'CredentialsError', message: 'Missing credentials in config, if using AWS_CONFIG_FILE, set AWS_SDK_LOAD_CONFIG=1'});
         }
         done();
       });
@@ -22856,12 +22987,12 @@ Object.defineProperty(exports, '__esModule', { value: true });
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var endpoint = __webpack_require__(385);
-var universalUserAgent = __webpack_require__(796);
+var universalUserAgent = __webpack_require__(211);
 var isPlainObject = _interopDefault(__webpack_require__(696));
 var nodeFetch = _interopDefault(__webpack_require__(454));
 var requestError = __webpack_require__(463);
 
-const VERSION = "5.3.1";
+const VERSION = "5.3.4";
 
 function getBufferResponse(response) {
   return response.arrayBuffer();
@@ -22891,7 +23022,7 @@ function fetchWrapper(requestOptions) {
 
     if (status === 204 || status === 205) {
       return;
-    } // GitHub API returns 200 for HEAD requsets
+    } // GitHub API returns 200 for HEAD requests
 
 
     if (requestOptions.method === "HEAD") {
@@ -22922,7 +23053,7 @@ function fetchWrapper(requestOptions) {
         try {
           let responseBody = JSON.parse(error.message);
           Object.assign(error, responseBody);
-          let errors = responseBody.errors; // Assumption `errors` would always be in Array Fotmat
+          let errors = responseBody.errors; // Assumption `errors` would always be in Array format
 
           error.message = error.message + ": " + errors.map(JSON.stringify).join(", ");
         } catch (e) {// ignore, see octokit/rest.js#684
@@ -23460,7 +23591,7 @@ function removeHook (state, name, method) {
 /* 764 */
 /***/ (function(module) {
 
-module.exports = {"version":"2.0","metadata":{"apiVersion":"2010-08-01","endpointPrefix":"monitoring","protocol":"query","serviceAbbreviation":"CloudWatch","serviceFullName":"Amazon CloudWatch","serviceId":"CloudWatch","signatureVersion":"v4","uid":"monitoring-2010-08-01","xmlNamespace":"http://monitoring.amazonaws.com/doc/2010-08-01/"},"operations":{"DeleteAlarms":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DeleteAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{}}},"output":{"resultWrapper":"DeleteAnomalyDetectorResult","type":"structure","members":{}}},"DeleteDashboards":{"input":{"type":"structure","required":["DashboardNames"],"members":{"DashboardNames":{"type":"list","member":{}}}},"output":{"resultWrapper":"DeleteDashboardsResult","type":"structure","members":{}}},"DeleteInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DeleteInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"DescribeAlarmHistory":{"input":{"type":"structure","members":{"AlarmName":{},"HistoryItemType":{},"StartDate":{"type":"timestamp"},"EndDate":{"type":"timestamp"},"MaxRecords":{"type":"integer"},"NextToken":{}}},"output":{"resultWrapper":"DescribeAlarmHistoryResult","type":"structure","members":{"AlarmHistoryItems":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"Timestamp":{"type":"timestamp"},"HistoryItemType":{},"HistorySummary":{},"HistoryData":{}}}},"NextToken":{}}}},"DescribeAlarms":{"input":{"type":"structure","members":{"AlarmNames":{"shape":"S2"},"AlarmNamePrefix":{},"StateValue":{},"ActionPrefix":{},"MaxRecords":{"type":"integer"},"NextToken":{}}},"output":{"resultWrapper":"DescribeAlarmsResult","type":"structure","members":{"MetricAlarms":{"shape":"S16"},"NextToken":{}}}},"DescribeAlarmsForMetric":{"input":{"type":"structure","required":["MetricName","Namespace"],"members":{"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{}}},"output":{"resultWrapper":"DescribeAlarmsForMetricResult","type":"structure","members":{"MetricAlarms":{"shape":"S16"}}}},"DescribeAnomalyDetectors":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"},"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}}},"output":{"resultWrapper":"DescribeAnomalyDetectorsResult","type":"structure","members":{"AnomalyDetectors":{"type":"list","member":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S24"},"StateValue":{}}}},"NextToken":{}}}},"DescribeInsightRules":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"}}},"output":{"resultWrapper":"DescribeInsightRulesResult","type":"structure","members":{"NextToken":{},"InsightRules":{"type":"list","member":{"type":"structure","required":["Name","State","Schema","Definition"],"members":{"Name":{},"State":{},"Schema":{},"Definition":{}}}}}}},"DisableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DisableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DisableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"EnableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"EnableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"EnableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"GetDashboard":{"input":{"type":"structure","required":["DashboardName"],"members":{"DashboardName":{}}},"output":{"resultWrapper":"GetDashboardResult","type":"structure","members":{"DashboardArn":{},"DashboardBody":{},"DashboardName":{}}}},"GetInsightRuleReport":{"input":{"type":"structure","required":["RuleName","StartTime","EndTime","Period"],"members":{"RuleName":{},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"MaxContributorCount":{"type":"integer"},"Metrics":{"type":"list","member":{}},"OrderBy":{}}},"output":{"resultWrapper":"GetInsightRuleReportResult","type":"structure","members":{"KeyLabels":{"type":"list","member":{}},"AggregationStatistic":{},"AggregateValue":{"type":"double"},"ApproximateUniqueCount":{"type":"long"},"Contributors":{"type":"list","member":{"type":"structure","required":["Keys","ApproximateAggregateValue","Datapoints"],"members":{"Keys":{"type":"list","member":{}},"ApproximateAggregateValue":{"type":"double"},"Datapoints":{"type":"list","member":{"type":"structure","required":["Timestamp","ApproximateValue"],"members":{"Timestamp":{"type":"timestamp"},"ApproximateValue":{"type":"double"}}}}}}},"MetricDatapoints":{"type":"list","member":{"type":"structure","required":["Timestamp"],"members":{"Timestamp":{"type":"timestamp"},"UniqueContributors":{"type":"double"},"MaxContributorValue":{"type":"double"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}}}}}},"GetMetricData":{"input":{"type":"structure","required":["MetricDataQueries","StartTime","EndTime"],"members":{"MetricDataQueries":{"shape":"S1p"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"NextToken":{},"ScanBy":{},"MaxDatapoints":{"type":"integer"}}},"output":{"resultWrapper":"GetMetricDataResult","type":"structure","members":{"MetricDataResults":{"type":"list","member":{"type":"structure","members":{"Id":{},"Label":{},"Timestamps":{"type":"list","member":{"type":"timestamp"}},"Values":{"type":"list","member":{"type":"double"}},"StatusCode":{},"Messages":{"shape":"S3k"}}}},"NextToken":{},"Messages":{"shape":"S3k"}}}},"GetMetricStatistics":{"input":{"type":"structure","required":["Namespace","MetricName","StartTime","EndTime","Period"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"Statistics":{"type":"list","member":{}},"ExtendedStatistics":{"type":"list","member":{}},"Unit":{}}},"output":{"resultWrapper":"GetMetricStatisticsResult","type":"structure","members":{"Label":{},"Datapoints":{"type":"list","member":{"type":"structure","members":{"Timestamp":{"type":"timestamp"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"},"Unit":{},"ExtendedStatistics":{"type":"map","key":{},"value":{"type":"double"}}},"xmlOrder":["Timestamp","SampleCount","Average","Sum","Minimum","Maximum","Unit","ExtendedStatistics"]}}}}},"GetMetricWidgetImage":{"input":{"type":"structure","required":["MetricWidget"],"members":{"MetricWidget":{},"OutputFormat":{}}},"output":{"resultWrapper":"GetMetricWidgetImageResult","type":"structure","members":{"MetricWidgetImage":{"type":"blob"}}}},"ListDashboards":{"input":{"type":"structure","members":{"DashboardNamePrefix":{},"NextToken":{}}},"output":{"resultWrapper":"ListDashboardsResult","type":"structure","members":{"DashboardEntries":{"type":"list","member":{"type":"structure","members":{"DashboardName":{},"DashboardArn":{},"LastModified":{"type":"timestamp"},"Size":{"type":"long"}}}},"NextToken":{}}}},"ListMetrics":{"input":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"type":"list","member":{"type":"structure","required":["Name"],"members":{"Name":{},"Value":{}}}},"NextToken":{}}},"output":{"resultWrapper":"ListMetricsResult","type":"structure","members":{"Metrics":{"type":"list","member":{"shape":"S1t"}},"NextToken":{}},"xmlOrder":["Metrics","NextToken"]}},"ListTagsForResource":{"input":{"type":"structure","required":["ResourceARN"],"members":{"ResourceARN":{}}},"output":{"resultWrapper":"ListTagsForResourceResult","type":"structure","members":{"Tags":{"shape":"S4f"}}}},"PutAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S24"}}},"output":{"resultWrapper":"PutAnomalyDetectorResult","type":"structure","members":{}}},"PutDashboard":{"input":{"type":"structure","required":["DashboardName","DashboardBody"],"members":{"DashboardName":{},"DashboardBody":{}}},"output":{"resultWrapper":"PutDashboardResult","type":"structure","members":{"DashboardValidationMessages":{"type":"list","member":{"type":"structure","members":{"DataPath":{},"Message":{}}}}}}},"PutInsightRule":{"input":{"type":"structure","required":["RuleName","RuleDefinition"],"members":{"RuleName":{},"RuleState":{},"RuleDefinition":{}}},"output":{"resultWrapper":"PutInsightRuleResult","type":"structure","members":{}}},"PutMetricAlarm":{"input":{"type":"structure","required":["AlarmName","EvaluationPeriods","ComparisonOperator"],"members":{"AlarmName":{},"AlarmDescription":{},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1b"},"AlarmActions":{"shape":"S1b"},"InsufficientDataActions":{"shape":"S1b"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1p"},"Tags":{"shape":"S4f"},"ThresholdMetricId":{}}}},"PutMetricData":{"input":{"type":"structure","required":["Namespace","MetricData"],"members":{"Namespace":{},"MetricData":{"type":"list","member":{"type":"structure","required":["MetricName"],"members":{"MetricName":{},"Dimensions":{"shape":"S7"},"Timestamp":{"type":"timestamp"},"Value":{"type":"double"},"StatisticValues":{"type":"structure","required":["SampleCount","Sum","Minimum","Maximum"],"members":{"SampleCount":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}},"Values":{"type":"list","member":{"type":"double"}},"Counts":{"type":"list","member":{"type":"double"}},"Unit":{},"StorageResolution":{"type":"integer"}}}}}}},"SetAlarmState":{"input":{"type":"structure","required":["AlarmName","StateValue","StateReason"],"members":{"AlarmName":{},"StateValue":{},"StateReason":{},"StateReasonData":{}}}},"TagResource":{"input":{"type":"structure","required":["ResourceARN","Tags"],"members":{"ResourceARN":{},"Tags":{"shape":"S4f"}}},"output":{"resultWrapper":"TagResourceResult","type":"structure","members":{}}},"UntagResource":{"input":{"type":"structure","required":["ResourceARN","TagKeys"],"members":{"ResourceARN":{},"TagKeys":{"type":"list","member":{}}}},"output":{"resultWrapper":"UntagResourceResult","type":"structure","members":{}}}},"shapes":{"S2":{"type":"list","member":{}},"S7":{"type":"list","member":{"type":"structure","required":["Name","Value"],"members":{"Name":{},"Value":{}},"xmlOrder":["Name","Value"]}},"Si":{"type":"list","member":{}},"Sl":{"type":"list","member":{"type":"structure","members":{"FailureResource":{},"ExceptionType":{},"FailureCode":{},"FailureDescription":{}}}},"S16":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"AlarmArn":{},"AlarmDescription":{},"AlarmConfigurationUpdatedTimestamp":{"type":"timestamp"},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1b"},"AlarmActions":{"shape":"S1b"},"InsufficientDataActions":{"shape":"S1b"},"StateValue":{},"StateReason":{},"StateReasonData":{},"StateUpdatedTimestamp":{"type":"timestamp"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1p"},"ThresholdMetricId":{}},"xmlOrder":["AlarmName","AlarmArn","AlarmDescription","AlarmConfigurationUpdatedTimestamp","ActionsEnabled","OKActions","AlarmActions","InsufficientDataActions","StateValue","StateReason","StateReasonData","StateUpdatedTimestamp","MetricName","Namespace","Statistic","Dimensions","Period","Unit","EvaluationPeriods","Threshold","ComparisonOperator","ExtendedStatistic","TreatMissingData","EvaluateLowSampleCountPercentile","DatapointsToAlarm","Metrics","ThresholdMetricId"]}},"S1b":{"type":"list","member":{}},"S1p":{"type":"list","member":{"type":"structure","required":["Id"],"members":{"Id":{},"MetricStat":{"type":"structure","required":["Metric","Period","Stat"],"members":{"Metric":{"shape":"S1t"},"Period":{"type":"integer"},"Stat":{},"Unit":{}}},"Expression":{},"Label":{},"ReturnData":{"type":"boolean"},"Period":{"type":"integer"}}}},"S1t":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}},"xmlOrder":["Namespace","MetricName","Dimensions"]},"S24":{"type":"structure","members":{"ExcludedTimeRanges":{"type":"list","member":{"type":"structure","required":["StartTime","EndTime"],"members":{"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"}},"xmlOrder":["StartTime","EndTime"]}},"MetricTimezone":{}}},"S3k":{"type":"list","member":{"type":"structure","members":{"Code":{},"Value":{}}}},"S4f":{"type":"list","member":{"type":"structure","required":["Key","Value"],"members":{"Key":{},"Value":{}}}}}};
+module.exports = {"version":"2.0","metadata":{"apiVersion":"2010-08-01","endpointPrefix":"monitoring","protocol":"query","serviceAbbreviation":"CloudWatch","serviceFullName":"Amazon CloudWatch","serviceId":"CloudWatch","signatureVersion":"v4","uid":"monitoring-2010-08-01","xmlNamespace":"http://monitoring.amazonaws.com/doc/2010-08-01/"},"operations":{"DeleteAlarms":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DeleteAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{}}},"output":{"resultWrapper":"DeleteAnomalyDetectorResult","type":"structure","members":{}}},"DeleteDashboards":{"input":{"type":"structure","required":["DashboardNames"],"members":{"DashboardNames":{"type":"list","member":{}}}},"output":{"resultWrapper":"DeleteDashboardsResult","type":"structure","members":{}}},"DeleteInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DeleteInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"DescribeAlarmHistory":{"input":{"type":"structure","members":{"AlarmName":{},"AlarmTypes":{"shape":"Ss"},"HistoryItemType":{},"StartDate":{"type":"timestamp"},"EndDate":{"type":"timestamp"},"MaxRecords":{"type":"integer"},"NextToken":{},"ScanBy":{}}},"output":{"resultWrapper":"DescribeAlarmHistoryResult","type":"structure","members":{"AlarmHistoryItems":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"AlarmType":{},"Timestamp":{"type":"timestamp"},"HistoryItemType":{},"HistorySummary":{},"HistoryData":{}}}},"NextToken":{}}}},"DescribeAlarms":{"input":{"type":"structure","members":{"AlarmNames":{"shape":"S2"},"AlarmNamePrefix":{},"AlarmTypes":{"shape":"Ss"},"ChildrenOfAlarmName":{},"ParentsOfAlarmName":{},"StateValue":{},"ActionPrefix":{},"MaxRecords":{"type":"integer"},"NextToken":{}}},"output":{"resultWrapper":"DescribeAlarmsResult","type":"structure","members":{"CompositeAlarms":{"type":"list","member":{"type":"structure","members":{"ActionsEnabled":{"type":"boolean"},"AlarmActions":{"shape":"S1c"},"AlarmArn":{},"AlarmConfigurationUpdatedTimestamp":{"type":"timestamp"},"AlarmDescription":{},"AlarmName":{},"AlarmRule":{},"InsufficientDataActions":{"shape":"S1c"},"OKActions":{"shape":"S1c"},"StateReason":{},"StateReasonData":{},"StateUpdatedTimestamp":{"type":"timestamp"},"StateValue":{}},"xmlOrder":["ActionsEnabled","AlarmActions","AlarmArn","AlarmConfigurationUpdatedTimestamp","AlarmDescription","AlarmName","AlarmRule","InsufficientDataActions","OKActions","StateReason","StateReasonData","StateUpdatedTimestamp","StateValue"]}},"MetricAlarms":{"shape":"S1j"},"NextToken":{}}}},"DescribeAlarmsForMetric":{"input":{"type":"structure","required":["MetricName","Namespace"],"members":{"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{}}},"output":{"resultWrapper":"DescribeAlarmsForMetricResult","type":"structure","members":{"MetricAlarms":{"shape":"S1j"}}}},"DescribeAnomalyDetectors":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"},"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}}},"output":{"resultWrapper":"DescribeAnomalyDetectorsResult","type":"structure","members":{"AnomalyDetectors":{"type":"list","member":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S2a"},"StateValue":{}}}},"NextToken":{}}}},"DescribeInsightRules":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"}}},"output":{"resultWrapper":"DescribeInsightRulesResult","type":"structure","members":{"NextToken":{},"InsightRules":{"type":"list","member":{"type":"structure","required":["Name","State","Schema","Definition"],"members":{"Name":{},"State":{},"Schema":{},"Definition":{}}}}}}},"DisableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DisableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DisableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"EnableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"EnableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"EnableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"GetDashboard":{"input":{"type":"structure","required":["DashboardName"],"members":{"DashboardName":{}}},"output":{"resultWrapper":"GetDashboardResult","type":"structure","members":{"DashboardArn":{},"DashboardBody":{},"DashboardName":{}}}},"GetInsightRuleReport":{"input":{"type":"structure","required":["RuleName","StartTime","EndTime","Period"],"members":{"RuleName":{},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"MaxContributorCount":{"type":"integer"},"Metrics":{"type":"list","member":{}},"OrderBy":{}}},"output":{"resultWrapper":"GetInsightRuleReportResult","type":"structure","members":{"KeyLabels":{"type":"list","member":{}},"AggregationStatistic":{},"AggregateValue":{"type":"double"},"ApproximateUniqueCount":{"type":"long"},"Contributors":{"type":"list","member":{"type":"structure","required":["Keys","ApproximateAggregateValue","Datapoints"],"members":{"Keys":{"type":"list","member":{}},"ApproximateAggregateValue":{"type":"double"},"Datapoints":{"type":"list","member":{"type":"structure","required":["Timestamp","ApproximateValue"],"members":{"Timestamp":{"type":"timestamp"},"ApproximateValue":{"type":"double"}}}}}}},"MetricDatapoints":{"type":"list","member":{"type":"structure","required":["Timestamp"],"members":{"Timestamp":{"type":"timestamp"},"UniqueContributors":{"type":"double"},"MaxContributorValue":{"type":"double"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}}}}}},"GetMetricData":{"input":{"type":"structure","required":["MetricDataQueries","StartTime","EndTime"],"members":{"MetricDataQueries":{"shape":"S1v"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"NextToken":{},"ScanBy":{},"MaxDatapoints":{"type":"integer"}}},"output":{"resultWrapper":"GetMetricDataResult","type":"structure","members":{"MetricDataResults":{"type":"list","member":{"type":"structure","members":{"Id":{},"Label":{},"Timestamps":{"type":"list","member":{"type":"timestamp"}},"Values":{"type":"list","member":{"type":"double"}},"StatusCode":{},"Messages":{"shape":"S3p"}}}},"NextToken":{},"Messages":{"shape":"S3p"}}}},"GetMetricStatistics":{"input":{"type":"structure","required":["Namespace","MetricName","StartTime","EndTime","Period"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"Statistics":{"type":"list","member":{}},"ExtendedStatistics":{"type":"list","member":{}},"Unit":{}}},"output":{"resultWrapper":"GetMetricStatisticsResult","type":"structure","members":{"Label":{},"Datapoints":{"type":"list","member":{"type":"structure","members":{"Timestamp":{"type":"timestamp"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"},"Unit":{},"ExtendedStatistics":{"type":"map","key":{},"value":{"type":"double"}}},"xmlOrder":["Timestamp","SampleCount","Average","Sum","Minimum","Maximum","Unit","ExtendedStatistics"]}}}}},"GetMetricWidgetImage":{"input":{"type":"structure","required":["MetricWidget"],"members":{"MetricWidget":{},"OutputFormat":{}}},"output":{"resultWrapper":"GetMetricWidgetImageResult","type":"structure","members":{"MetricWidgetImage":{"type":"blob"}}}},"ListDashboards":{"input":{"type":"structure","members":{"DashboardNamePrefix":{},"NextToken":{}}},"output":{"resultWrapper":"ListDashboardsResult","type":"structure","members":{"DashboardEntries":{"type":"list","member":{"type":"structure","members":{"DashboardName":{},"DashboardArn":{},"LastModified":{"type":"timestamp"},"Size":{"type":"long"}}}},"NextToken":{}}}},"ListMetrics":{"input":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"type":"list","member":{"type":"structure","required":["Name"],"members":{"Name":{},"Value":{}}}},"NextToken":{}}},"output":{"resultWrapper":"ListMetricsResult","type":"structure","members":{"Metrics":{"type":"list","member":{"shape":"S1z"}},"NextToken":{}},"xmlOrder":["Metrics","NextToken"]}},"ListTagsForResource":{"input":{"type":"structure","required":["ResourceARN"],"members":{"ResourceARN":{}}},"output":{"resultWrapper":"ListTagsForResourceResult","type":"structure","members":{"Tags":{"shape":"S4k"}}}},"PutAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S2a"}}},"output":{"resultWrapper":"PutAnomalyDetectorResult","type":"structure","members":{}}},"PutCompositeAlarm":{"input":{"type":"structure","required":["AlarmName","AlarmRule"],"members":{"ActionsEnabled":{"type":"boolean"},"AlarmActions":{"shape":"S1c"},"AlarmDescription":{},"AlarmName":{},"AlarmRule":{},"InsufficientDataActions":{"shape":"S1c"},"OKActions":{"shape":"S1c"},"Tags":{"shape":"S4k"}}}},"PutDashboard":{"input":{"type":"structure","required":["DashboardName","DashboardBody"],"members":{"DashboardName":{},"DashboardBody":{}}},"output":{"resultWrapper":"PutDashboardResult","type":"structure","members":{"DashboardValidationMessages":{"type":"list","member":{"type":"structure","members":{"DataPath":{},"Message":{}}}}}}},"PutInsightRule":{"input":{"type":"structure","required":["RuleName","RuleDefinition"],"members":{"RuleName":{},"RuleState":{},"RuleDefinition":{}}},"output":{"resultWrapper":"PutInsightRuleResult","type":"structure","members":{}}},"PutMetricAlarm":{"input":{"type":"structure","required":["AlarmName","EvaluationPeriods","ComparisonOperator"],"members":{"AlarmName":{},"AlarmDescription":{},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1c"},"AlarmActions":{"shape":"S1c"},"InsufficientDataActions":{"shape":"S1c"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1v"},"Tags":{"shape":"S4k"},"ThresholdMetricId":{}}}},"PutMetricData":{"input":{"type":"structure","required":["Namespace","MetricData"],"members":{"Namespace":{},"MetricData":{"type":"list","member":{"type":"structure","required":["MetricName"],"members":{"MetricName":{},"Dimensions":{"shape":"S7"},"Timestamp":{"type":"timestamp"},"Value":{"type":"double"},"StatisticValues":{"type":"structure","required":["SampleCount","Sum","Minimum","Maximum"],"members":{"SampleCount":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}},"Values":{"type":"list","member":{"type":"double"}},"Counts":{"type":"list","member":{"type":"double"}},"Unit":{},"StorageResolution":{"type":"integer"}}}}}}},"SetAlarmState":{"input":{"type":"structure","required":["AlarmName","StateValue","StateReason"],"members":{"AlarmName":{},"StateValue":{},"StateReason":{},"StateReasonData":{}}}},"TagResource":{"input":{"type":"structure","required":["ResourceARN","Tags"],"members":{"ResourceARN":{},"Tags":{"shape":"S4k"}}},"output":{"resultWrapper":"TagResourceResult","type":"structure","members":{}}},"UntagResource":{"input":{"type":"structure","required":["ResourceARN","TagKeys"],"members":{"ResourceARN":{},"TagKeys":{"type":"list","member":{}}}},"output":{"resultWrapper":"UntagResourceResult","type":"structure","members":{}}}},"shapes":{"S2":{"type":"list","member":{}},"S7":{"type":"list","member":{"type":"structure","required":["Name","Value"],"members":{"Name":{},"Value":{}},"xmlOrder":["Name","Value"]}},"Si":{"type":"list","member":{}},"Sl":{"type":"list","member":{"type":"structure","members":{"FailureResource":{},"ExceptionType":{},"FailureCode":{},"FailureDescription":{}}}},"Ss":{"type":"list","member":{}},"S1c":{"type":"list","member":{}},"S1j":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"AlarmArn":{},"AlarmDescription":{},"AlarmConfigurationUpdatedTimestamp":{"type":"timestamp"},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1c"},"AlarmActions":{"shape":"S1c"},"InsufficientDataActions":{"shape":"S1c"},"StateValue":{},"StateReason":{},"StateReasonData":{},"StateUpdatedTimestamp":{"type":"timestamp"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1v"},"ThresholdMetricId":{}},"xmlOrder":["AlarmName","AlarmArn","AlarmDescription","AlarmConfigurationUpdatedTimestamp","ActionsEnabled","OKActions","AlarmActions","InsufficientDataActions","StateValue","StateReason","StateReasonData","StateUpdatedTimestamp","MetricName","Namespace","Statistic","Dimensions","Period","Unit","EvaluationPeriods","Threshold","ComparisonOperator","ExtendedStatistic","TreatMissingData","EvaluateLowSampleCountPercentile","DatapointsToAlarm","Metrics","ThresholdMetricId"]}},"S1v":{"type":"list","member":{"type":"structure","required":["Id"],"members":{"Id":{},"MetricStat":{"type":"structure","required":["Metric","Period","Stat"],"members":{"Metric":{"shape":"S1z"},"Period":{"type":"integer"},"Stat":{},"Unit":{}}},"Expression":{},"Label":{},"ReturnData":{"type":"boolean"},"Period":{"type":"integer"}}}},"S1z":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}},"xmlOrder":["Namespace","MetricName","Dimensions"]},"S2a":{"type":"structure","members":{"ExcludedTimeRanges":{"type":"list","member":{"type":"structure","required":["StartTime","EndTime"],"members":{"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"}},"xmlOrder":["StartTime","EndTime"]}},"MetricTimezone":{}}},"S3p":{"type":"list","member":{"type":"structure","members":{"Code":{},"Value":{}}}},"S4k":{"type":"list","member":{"type":"structure","required":["Key","Value"],"members":{"Key":{},"Value":{}}}}}};
 
 /***/ }),
 /* 765 */,
@@ -42767,7 +42898,7 @@ AWS.NodeHttpClient = AWS.util.inherit({
     }
 
     var useSSL = endpoint.protocol === 'https:';
-    var http = useSSL ? __webpack_require__(211) : __webpack_require__(605);
+    var http = useSSL ? __webpack_require__(34) : __webpack_require__(605);
     var options = {
       host: endpoint.hostname,
       port: endpoint.port,
@@ -42889,7 +43020,7 @@ AWS.NodeHttpClient = AWS.util.inherit({
    * Create the https.Agent or http.Agent according to the request schema.
    */
   getAgent: function getAgent(useSSL, agentOptions) {
-    var http = useSSL ? __webpack_require__(211) : __webpack_require__(605);
+    var http = useSSL ? __webpack_require__(34) : __webpack_require__(605);
     if (useSSL) {
       if (!AWS.NodeHttpClient.sslAgent) {
         AWS.NodeHttpClient.sslAgent = new http.Agent(AWS.util.merge({
