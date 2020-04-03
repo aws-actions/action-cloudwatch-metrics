@@ -1,6 +1,8 @@
 # Amazon CloudWatch Build Status Github Action
 
 [![GitHub Action Status](https://github.com/ros-tooling/action-cloudwatch-metrics/workflows/Test%20action-cloudwatch-metrics/badge.svg)](https://github.com/ros-tooling/action-cloudwatch-metrics)
+[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=ros-tooling/action-cloudwatch-metrics)](https://dependabot.com)
+
 
 This action sends the status of a workflow step to CloudWatch Metrics.
 It does this by checking the failure or success status of the previous workflow step
