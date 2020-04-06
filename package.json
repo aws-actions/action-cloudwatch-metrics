@@ -9,7 +9,7 @@
     "precommit": "npm run build && npm run lint",
     "test": "tsc --noEmit && jest --coverage"
   },
-  "author": "AWS RoboMaker",
+  "author": "ROS Tooling Working Group",
   "licenses": [
     {
       "type": "Apache-2.0",
