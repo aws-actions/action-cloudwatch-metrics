@@ -1,6 +1,7 @@
 # Amazon CloudWatch Build Status Github Action
 
 [![GitHub Action Status](https://github.com/ros-tooling/action-cloudwatch-metrics/workflows/Test%20action-cloudwatch-metrics/badge.svg)](https://github.com/ros-tooling/action-cloudwatch-metrics)
+[![codecov](https://codecov.io/gh/ros-tooling/action-cloudwatch-metrics/branch/master/graph/badge.svg)](https://codecov.io/gh/ros-tooling/action-cloudwatch-metrics)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=ros-tooling/action-cloudwatch-metrics)](https://dependabot.com)
 
 
