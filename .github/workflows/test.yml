@@ -23,4 +23,3 @@ jobs:
       with:
         node-version: '12.x'
     - run: .github/workflows/build-and-test.sh
-      shell: bash  # Ensure bash is used on Windows platform too
