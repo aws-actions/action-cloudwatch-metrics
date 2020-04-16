@@ -59,10 +59,10 @@ Defaults to:
 
 ```JSON
     [
-      { 'Name': 'github.event_name', 'Value': "${{ github.event_name }}" },
-      { 'Name': 'github.ref', 'Value': "${{ github.ref }}" },
-      { 'Name': 'github.repository', 'Value': "${{ github.repository }}" },
-      { 'Name': 'github.workflow', 'Value': "${{ github.workflow }}" },
+      { "Name": "github.event_name", "Value": "${{ github.event_name }}" },
+      { "Name": "github.ref", "Value": "${{ github.ref }}" },
+      { "Name": "github.repository", "Value": "${{ github.repository }}" },
+      { "Name": "github.workflow", "Value": "${{ github.workflow }}" },
     ]
 ```
 
