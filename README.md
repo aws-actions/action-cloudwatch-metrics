@@ -82,9 +82,10 @@ to enable boolean values to be passed as metrics.
 ### `namespace`
 
 The namespace for the metric data.
+Defaults to `ActionCloudWatchMetrics`.
 
 To avoid conflicts with AWS service namespaces, you should not specify a
-namespace that begins with `AWS/`
+namespace that begins with `AWS/`.
 
 [amazon-cloudwatch]: https://docs.aws.amazon.com/cloudwatch/index.html
 [github-context]: https://help.github.com/en/actions/automating-your-workflow-with-github-actions/contexts-and-expression-syntax-for-github-actions#github-context
