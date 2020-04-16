@@ -7,6 +7,7 @@
     "build": "ncc build src/cw-build-status.ts -o dist",
     "lint": "eslint --fix src/*.ts __tests__/*.ts",
     "precommit": "npm run build && npm run lint",
+    "prettier": "prettier --write src/*.ts __tests__/*.ts",
     "test": "tsc --noEmit && jest --coverage"
   },
   "author": "ROS Tooling Working Group",
@@ -30,6 +31,7 @@
     "eslint": "^6.7.2",
     "husky": "^4.2.5",
     "jest": "^25.3.0",
+    "prettier": "^2.0.4",
     "ts-jest": "^25.3.1",
     "typescript": "^3.8.2"
   },

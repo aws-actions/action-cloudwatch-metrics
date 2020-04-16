@@ -1,16 +1,20 @@
-# Amazon CloudWatch Build Status Github Action
+# Amazon CloudWatch Metrics Github Action
 
 [![GitHub Action Status](https://github.com/ros-tooling/action-cloudwatch-metrics/workflows/Test%20action-cloudwatch-metrics/badge.svg)](https://github.com/ros-tooling/action-cloudwatch-metrics)
 [![codecov](https://codecov.io/gh/ros-tooling/action-cloudwatch-metrics/branch/master/graph/badge.svg)](https://codecov.io/gh/ros-tooling/action-cloudwatch-metrics)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=ros-tooling/action-cloudwatch-metrics)](https://dependabot.com)
 
+This action publishes a single metric to [Amazon CloudWatch][amazon-cloudwatch].
 
-This action sends the status of a workflow step to CloudWatch Metrics.
-It does this by checking the failure or success status of the previous workflow step
-and sending that status to CloudWatch.  
+You can use this action to report workflow metrics, such as completed builds,
+build failures, build times, or any other metric.
 
-This plugin should be used in conjunction with the [configure-aws-credentials Github Action][configure-aws-credentials] to setup your 
-AWS credentials correctly. 
+Using Amazon CloudWatch, you can then setup a unified dashboard to monitor
+all your packages, and be alerted when builds fail.
+
+To access AWS from a GitHub Action workflow, consider using
+[configure-aws-credentials]. This action simplifies setting AWS credentials
+correctly.
 
 ## Example Workflow
 
@@ -21,7 +25,7 @@ jobs:
     name: 'Build'
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
     # Make sure the secrets are stored in you repo settings
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
@@ -31,60 +35,58 @@ jobs:
         aws-region: us-west-2
     - name: Build
       run: ./my-build-script.sh
-    # The failure should come before the success
-    - name: Log Build Failure
-      uses: ros-tooling/action-cloudwatch-metrics@0.0.1
-      with:
-        status: 'failure'
-      # An example conditional where logging only occurs for build
-      # failures on a scheduled event (like a nightly build)
-      if: failure() && github.event == 'schedule'
-    - name: Log Build Success
-      uses: ros-tooling/action-cloudwatch-metrics@0.0.1
-      with:
-        status: 'success'
-      if: success() && github.event == 'schedule'
+    - name: Log Build
+      # replace TAG by the latest tag in the repository
+      uses: ros-tooling/action-cloudwatch-metrics@TAG
 ```
 
 ## CloudWatch Metrics format
 
-The following metrics will be logged under the namespace `GithubCI` by default.
-The namespace can be changed via the `namespace` input parameter.
+By default, the action will push a metrics named 'Builds', with a value of 1
+if the build succeeds, or 0 otherwise. The metrics dimensions are:
+`github.event_name`, `github.ref`, `github.repository`, `github.workflow`.
 
-- Builds - Always a value of 1
-- FailedBuilds  - Value of 1 when the build fails, 0 otherwise
-- SucceededBuilds - Value of 0 when the build fails, 1 otherwise
-
-Each Metric has the following dimensions:
-
-- IsCronJob - True if the workflow run is a `schedule`. False otherwise.
-- ProjectName - Set to the input `project-name`.
-  Defaults to [${{ github.repository }}].
-
-## FAQ
-
-**Q.** Can this send the status of multiple steps at once?
-**A.** No, unfortunately you can only check the failure/success of the previous step, 
-not multiple steps.
-If you want to send the status of an entire workflow you could:
-1. Create a new workflow that listens to a [check_run or check_suite webhook event][check-run-event-doc].
-2. Query the Github API for the overall build status.
-3. Send the status to CloudWatch Metrics.
+See [GitHub actions context documentation][github-context] for details about
+those values.
 
 ## Inputs
 
-### `status`
+### `metric-dimensions`
 
-**Required** The build status `[failure|success]`.
+The dimensions of the metric.
+
+Defaults to:
+
+```JSON
+    [
+      { 'Name': 'github.event_name', 'Value': "${{ github.event_name }}" },
+      { 'Name': 'github.ref', 'Value': "${{ github.ref }}" },
+      { 'Name': 'github.repository', 'Value': "${{ github.repository }}" },
+      { 'Name': 'github.workflow', 'Value': "${{ github.workflow }}" },
+    ]
+```
+
+### `metric-name`
+
+The name of the metric.
+Defaults to `Builds`.
+
+### `metric-value`
+
+The value for the metric.
+Defaults to `${{ job.status }} == 'success'`.
+
+`true` and `false` are respectfully transformed to 1.0, and 0.0, in order
+to enable boolean values to be passed as metrics.
 
 ### `namespace`
 
-The namespace that metrics are logged to. Defaults to `GithubCI`.
+The namespace for the metric data.
 
-### `project-name`
+To avoid conflicts with AWS service namespaces, you should not specify a
+namespace that begins with `AWS/`
 
-The name of your project. Defaults to [${{ github.repository }}]
-
-[${{ github.repository }}]: https://help.github.com/en/actions/automating-your-workflow-with-github-actions/contexts-and-expression-syntax-for-github-actions#github-context
+[amazon-cloudwatch]: https://docs.aws.amazon.com/cloudwatch/index.html
+[github-context]: https://help.github.com/en/actions/automating-your-workflow-with-github-actions/contexts-and-expression-syntax-for-github-actions#github-context
 [configure-aws-credentials]: https://github.com/aws-actions/configure-aws-credentials
 [check-run-event-doc]: https://developer.github.com/v3/activity/events/types/#checkrunevent
