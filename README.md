@@ -26,6 +26,9 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v2
+    - name: Build
+      run: ./my-build-script.sh
+
     # Make sure the secrets are stored in you repo settings
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
@@ -33,11 +36,11 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-west-2
-    - name: Build
-      run: ./my-build-script.sh
+      if: always()  # Setup credentials even if the workflow failed
     - name: Log Build
       # replace TAG by the latest tag in the repository
       uses: ros-tooling/action-cloudwatch-metrics@TAG
+      if: always()  # Need to run to log the workflow failure
 ```
 
 ## CloudWatch Metrics format
