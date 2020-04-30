@@ -8,7 +8,9 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:bionic
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
