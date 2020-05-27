@@ -21,7 +21,7 @@
     "@actions/core": "^1.2.4",
     "@actions/exec": "^1.0.4",
     "@actions/github": "^2.2.0",
-    "aws-sdk": "^2.683.0"
+    "aws-sdk": "^2.684.0"
   },
   "devDependencies": {
     "@types/jest": "^25.2.3",
