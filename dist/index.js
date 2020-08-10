@@ -19,7 +19,13 @@ module.exports =
 /******/ 		};
 /******/
 /******/ 		// Execute the module function
-/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 		var threw = true;
+/******/ 		try {
+/******/ 			modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 			threw = false;
+/******/ 		} finally {
+/******/ 			if(threw) delete installedModules[moduleId];
+/******/ 		}
 /******/
 /******/ 		// Flag the module as loaded
 /******/ 		module.l = true;
@@ -2680,9 +2686,13 @@ var PromisesDependency;
  *     Defaults to `true`.
  *
  * @!attribute endpointDiscoveryEnabled
- *   @return [Boolean] whether to enable endpoint discovery for operations that
- *     allow optionally using an endpoint returned by the service.
- *     Defaults to 'false'
+ *   @return [Boolean|undefined] whether to call operations with endpoints
+ *     given by service dynamically. Setting this config to `true` will enable
+ *     endpoint discovery for all applicable operations. Setting it to `false`
+ *     will explicitly disable endpoint discovery even though operations that
+ *     require endpoint discovery will presumably fail. Leaving it to
+ *     `undefined` means SDK only do endpoint discovery when it's required.
+ *     Defaults to `undefined`
  *
  * @!attribute endpointCacheSize
  *   @return [Number] the size of the global cache storing endpoints from endpoint
@@ -2835,10 +2845,13 @@ AWS.Config = AWS.util.inherit({
    *   S3 Transfer Acceleration endpoint with the S3 service. Default: `false`.
    * @option options clientSideMonitoring [Boolean] whether to collect and
    *   publish this client's performance metrics of all its API requests.
-   * @option options endpointDiscoveryEnabled [Boolean] whether to enable endpoint
-   *   discovery for operations that allow optionally using an endpoint returned by
-   *   the service.
-   *   Defaults to 'false'
+   * @option options endpointDiscoveryEnabled [Boolean|undefined] whether to
+   *   call operations with endpoints given by service dynamically. Setting this
+   * config to `true` will enable endpoint discovery for all applicable operations.
+   *   Setting it to `false` will explicitly disable endpoint discovery even though
+   *   operations that require endpoint discovery will presumably fail. Leaving it
+   *   to `undefined` means SDK will only do endpoint discovery when it's required.
+   *   Defaults to `undefined`
    * @option options endpointCacheSize [Number] the size of the global cache storing
    *   endpoints from endpoint discovery operations. Once endpoint cache is created,
    *   updating this setting cannot change existing cache size.
@@ -3069,7 +3082,7 @@ AWS.Config = AWS.util.inherit({
     retryDelayOptions: {},
     useAccelerateEndpoint: false,
     clientSideMonitoring: false,
-    endpointDiscoveryEnabled: false,
+    endpointDiscoveryEnabled: undefined,
     endpointCacheSize: 1000,
     hostPrefixEnabled: true,
     stsRegionalEndpoints: 'legacy'
@@ -4044,7 +4057,7 @@ AWS.util.update(AWS, {
   /**
    * @constant
    */
-  VERSION: '2.656.0',
+  VERSION: '2.725.0',
 
   /**
    * @api private
@@ -4587,14 +4600,28 @@ class Command {
         return cmdStr;
     }
 }
+/**
+ * Sanitizes an input into a string so it can be passed into issueCommand safely
+ * @param input input to sanitize into a string
+ */
+function toCommandValue(input) {
+    if (input === null || input === undefined) {
+        return '';
+    }
+    else if (typeof input === 'string' || input instanceof String) {
+        return input;
+    }
+    return JSON.stringify(input);
+}
+exports.toCommandValue = toCommandValue;
 function escapeData(s) {
-    return (s || '')
+    return toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A');
 }
 function escapeProperty(s) {
-    return (s || '')
+    return toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A')
@@ -5060,8 +5087,13 @@ AWS.Request = inherit({
     var region = service.config.region;
     var customUserAgent = service.config.customUserAgent;
 
-    // global endpoints sign as us-east-1
-    if (service.isGlobalEndpoint) region = 'us-east-1';
+    if (service.isGlobalEndpoint) {
+      if (service.signingRegion) {
+        region = service.signingRegion;
+      } else {
+        region = 'us-east-1';
+      }
+    }
 
     this.domain = domain && domain.active;
     this.service = service;
@@ -5935,11 +5967,13 @@ var ExitCode;
 /**
  * Sets env variable for this action and future actions in the job
  * @param name the name of the variable to set
- * @param val the value of the variable
+ * @param val the value of the variable. Non-string values will be converted to a string via JSON.stringify
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function exportVariable(name, val) {
-    process.env[name] = val;
-    command_1.issueCommand('set-env', { name }, val);
+    const convertedVal = command_1.toCommandValue(val);
+    process.env[name] = convertedVal;
+    command_1.issueCommand('set-env', { name }, convertedVal);
 }
 exports.exportVariable = exportVariable;
 /**
@@ -5978,12 +6012,22 @@ exports.getInput = getInput;
  * Sets the value of an output.
  *
  * @param     name     name of the output to set
- * @param     value    value to store
+ * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setOutput(name, value) {
     command_1.issueCommand('set-output', { name }, value);
 }
 exports.setOutput = setOutput;
+/**
+ * Enables or disables the echoing of commands into stdout for the rest of the step.
+ * Echoing is disabled by default if ACTIONS_STEP_DEBUG is not set.
+ *
+ */
+function setCommandEcho(enabled) {
+    command_1.issue('echo', enabled ? 'on' : 'off');
+}
+exports.setCommandEcho = setCommandEcho;
 //-----------------------------------------------------------------------
 // Results
 //-----------------------------------------------------------------------
@@ -6017,18 +6061,18 @@ function debug(message) {
 exports.debug = debug;
 /**
  * Adds an error issue
- * @param message error issue message
+ * @param message error issue message. Errors will be converted to string via toString()
  */
 function error(message) {
-    command_1.issue('error', message);
+    command_1.issue('error', message instanceof Error ? message.toString() : message);
 }
 exports.error = error;
 /**
  * Adds an warning issue
- * @param message warning issue message
+ * @param message warning issue message. Errors will be converted to string via toString()
  */
 function warning(message) {
-    command_1.issue('warning', message);
+    command_1.issue('warning', message instanceof Error ? message.toString() : message);
 }
 exports.warning = warning;
 /**
@@ -6086,8 +6130,9 @@ exports.group = group;
  * Saves state for current action, the state can only be retrieved by this action's post job execution.
  *
  * @param     name     name of the state to store
- * @param     value    value to store
+ * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function saveState(name, value) {
     command_1.issueCommand('save-state', { name }, value);
 }
@@ -7571,11 +7616,17 @@ function configureEndpoint(service) {
       // set dualstack endpoint
       if (service.config.useDualstack && util.isDualstackAvailable(service)) {
         config = util.copy(config);
-        config.endpoint = '{service}.dualstack.{region}.amazonaws.com';
+        config.endpoint = config.endpoint.replace(
+          /{service}\.({region}\.)?/,
+          '{service}.dualstack.{region}.'
+        );
       }
 
       // set global endpoint
       service.isGlobalEndpoint = !!config.globalEndpoint;
+      if (config.signingRegion) {
+        service.signingRegion = config.signingRegion;
+      }
 
       // signature version
       if (!config.signatureVersion) config.signatureVersion = 'v4';
@@ -7706,7 +7757,7 @@ module.exports = AWS.Signers.V3Https;
 /***/ 572:
 /***/ (function(module) {
 
-module.exports = {"rules":{"*/*":{"endpoint":"{service}.{region}.amazonaws.com"},"cn-*/*":{"endpoint":"{service}.{region}.amazonaws.com.cn"},"us-iso-*/*":{"endpoint":"{service}.{region}.c2s.ic.gov"},"us-isob-*/*":{"endpoint":"{service}.{region}.sc2s.sgov.gov"},"*/budgets":"globalSSL","*/cloudfront":"globalSSL","*/iam":"globalSSL","*/sts":"globalSSL","*/importexport":{"endpoint":"{service}.amazonaws.com","signatureVersion":"v2","globalEndpoint":true},"*/route53":{"endpoint":"https://{service}.amazonaws.com","signatureVersion":"v3https","globalEndpoint":true},"*/waf":"globalSSL","us-gov-*/iam":"globalGovCloud","us-gov-*/sts":{"endpoint":"{service}.{region}.amazonaws.com"},"us-gov-west-1/s3":"s3signature","us-west-1/s3":"s3signature","us-west-2/s3":"s3signature","eu-west-1/s3":"s3signature","ap-southeast-1/s3":"s3signature","ap-southeast-2/s3":"s3signature","ap-northeast-1/s3":"s3signature","sa-east-1/s3":"s3signature","us-east-1/s3":{"endpoint":"{service}.amazonaws.com","signatureVersion":"s3"},"us-east-1/sdb":{"endpoint":"{service}.amazonaws.com","signatureVersion":"v2"},"*/sdb":{"endpoint":"{service}.{region}.amazonaws.com","signatureVersion":"v2"}},"patterns":{"globalSSL":{"endpoint":"https://{service}.amazonaws.com","globalEndpoint":true},"globalGovCloud":{"endpoint":"{service}.us-gov.amazonaws.com"},"s3signature":{"endpoint":"{service}.{region}.amazonaws.com","signatureVersion":"s3"}}};
+module.exports = {"rules":{"*/*":{"endpoint":"{service}.{region}.amazonaws.com"},"cn-*/*":{"endpoint":"{service}.{region}.amazonaws.com.cn"},"us-iso-*/*":{"endpoint":"{service}.{region}.c2s.ic.gov"},"us-isob-*/*":{"endpoint":"{service}.{region}.sc2s.sgov.gov"},"*/budgets":"globalSSL","*/cloudfront":"globalSSL","*/sts":"globalSSL","*/importexport":{"endpoint":"{service}.amazonaws.com","signatureVersion":"v2","globalEndpoint":true},"*/route53":"globalSSL","cn-*/route53":{"endpoint":"{service}.amazonaws.com.cn","globalEndpoint":true,"signingRegion":"cn-northwest-1"},"us-gov-*/route53":"globalGovCloud","*/waf":"globalSSL","*/iam":"globalSSL","cn-*/iam":{"endpoint":"{service}.cn-north-1.amazonaws.com.cn","globalEndpoint":true,"signingRegion":"cn-north-1"},"us-gov-*/iam":"globalGovCloud","us-gov-*/sts":{"endpoint":"{service}.{region}.amazonaws.com"},"us-gov-west-1/s3":"s3signature","us-west-1/s3":"s3signature","us-west-2/s3":"s3signature","eu-west-1/s3":"s3signature","ap-southeast-1/s3":"s3signature","ap-southeast-2/s3":"s3signature","ap-northeast-1/s3":"s3signature","sa-east-1/s3":"s3signature","us-east-1/s3":{"endpoint":"{service}.amazonaws.com","signatureVersion":"s3"},"us-east-1/sdb":{"endpoint":"{service}.amazonaws.com","signatureVersion":"v2"},"*/sdb":{"endpoint":"{service}.{region}.amazonaws.com","signatureVersion":"v2"}},"patterns":{"globalSSL":{"endpoint":"https://{service}.amazonaws.com","globalEndpoint":true,"signingRegion":"us-east-1"},"globalGovCloud":{"endpoint":"{service}.us-gov.amazonaws.com","globalEndpoint":true,"signingRegion":"us-gov-west-1"},"s3signature":{"endpoint":"{service}.{region}.amazonaws.com","signatureVersion":"s3"}}};
 
 /***/ }),
 
@@ -8301,9 +8352,15 @@ AWS.EventListeners = {
     });
 
     add('VALIDATE_REGION', 'validate', function VALIDATE_REGION(req) {
-      if (!req.service.config.region && !req.service.isGlobalEndpoint) {
-        req.response.error = AWS.util.error(new Error(),
-          {code: 'ConfigError', message: 'Missing region in config'});
+      if (!req.service.isGlobalEndpoint) {
+        var dnsHostRegex = new RegExp(/^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])$/);
+        if (!req.service.config.region) {
+          req.response.error = AWS.util.error(new Error(),
+            {code: 'ConfigError', message: 'Missing region in config'});
+        } else if (!dnsHostRegex.test(req.service.config.region)) {
+          req.response.error = AWS.util.error(new Error(),
+            {code: 'ConfigError', message: 'Invalid region in config'});
+        }
       }
     });
 
@@ -8725,6 +8782,9 @@ AWS.EventListeners = {
         if (!shape) {
           return shape;
         }
+        if (inputShape.isSensitive) {
+          return '***SensitiveInformation***';
+        }
         switch (inputShape.type) {
           case 'structure':
             var struct = {};
@@ -8749,11 +8809,7 @@ AWS.EventListeners = {
             });
             return map;
           default:
-            if (inputShape.isSensitive) {
-              return '***SensitiveInformation***';
-            } else {
-              return shape;
-            }
+            return shape;
         }
       }
 
@@ -11992,7 +12048,7 @@ module.exports = {
 /***/ 694:
 /***/ (function(module) {
 
-module.exports = {"acm":{"name":"ACM","cors":true},"apigateway":{"name":"APIGateway","cors":true},"applicationautoscaling":{"prefix":"application-autoscaling","name":"ApplicationAutoScaling","cors":true},"appstream":{"name":"AppStream"},"autoscaling":{"name":"AutoScaling","cors":true},"batch":{"name":"Batch"},"budgets":{"name":"Budgets"},"clouddirectory":{"name":"CloudDirectory","versions":["2016-05-10*"]},"cloudformation":{"name":"CloudFormation","cors":true},"cloudfront":{"name":"CloudFront","versions":["2013-05-12*","2013-11-11*","2014-05-31*","2014-10-21*","2014-11-06*","2015-04-17*","2015-07-27*","2015-09-17*","2016-01-13*","2016-01-28*","2016-08-01*","2016-08-20*","2016-09-07*","2016-09-29*","2016-11-25*","2017-03-25*","2017-10-30*","2018-06-18*","2018-11-05*"],"cors":true},"cloudhsm":{"name":"CloudHSM","cors":true},"cloudsearch":{"name":"CloudSearch"},"cloudsearchdomain":{"name":"CloudSearchDomain"},"cloudtrail":{"name":"CloudTrail","cors":true},"cloudwatch":{"prefix":"monitoring","name":"CloudWatch","cors":true},"cloudwatchevents":{"prefix":"events","name":"CloudWatchEvents","versions":["2014-02-03*"],"cors":true},"cloudwatchlogs":{"prefix":"logs","name":"CloudWatchLogs","cors":true},"codebuild":{"name":"CodeBuild","cors":true},"codecommit":{"name":"CodeCommit","cors":true},"codedeploy":{"name":"CodeDeploy","cors":true},"codepipeline":{"name":"CodePipeline","cors":true},"cognitoidentity":{"prefix":"cognito-identity","name":"CognitoIdentity","cors":true},"cognitoidentityserviceprovider":{"prefix":"cognito-idp","name":"CognitoIdentityServiceProvider","cors":true},"cognitosync":{"prefix":"cognito-sync","name":"CognitoSync","cors":true},"configservice":{"prefix":"config","name":"ConfigService","cors":true},"cur":{"name":"CUR","cors":true},"datapipeline":{"name":"DataPipeline"},"devicefarm":{"name":"DeviceFarm","cors":true},"directconnect":{"name":"DirectConnect","cors":true},"directoryservice":{"prefix":"ds","name":"DirectoryService"},"discovery":{"name":"Discovery"},"dms":{"name":"DMS"},"dynamodb":{"name":"DynamoDB","cors":true},"dynamodbstreams":{"prefix":"streams.dynamodb","name":"DynamoDBStreams","cors":true},"ec2":{"name":"EC2","versions":["2013-06-15*","2013-10-15*","2014-02-01*","2014-05-01*","2014-06-15*","2014-09-01*","2014-10-01*","2015-03-01*","2015-04-15*","2015-10-01*","2016-04-01*","2016-09-15*"],"cors":true},"ecr":{"name":"ECR","cors":true},"ecs":{"name":"ECS","cors":true},"efs":{"prefix":"elasticfilesystem","name":"EFS","cors":true},"elasticache":{"name":"ElastiCache","versions":["2012-11-15*","2014-03-24*","2014-07-15*","2014-09-30*"],"cors":true},"elasticbeanstalk":{"name":"ElasticBeanstalk","cors":true},"elb":{"prefix":"elasticloadbalancing","name":"ELB","cors":true},"elbv2":{"prefix":"elasticloadbalancingv2","name":"ELBv2","cors":true},"emr":{"prefix":"elasticmapreduce","name":"EMR","cors":true},"es":{"name":"ES"},"elastictranscoder":{"name":"ElasticTranscoder","cors":true},"firehose":{"name":"Firehose","cors":true},"gamelift":{"name":"GameLift","cors":true},"glacier":{"name":"Glacier"},"health":{"name":"Health"},"iam":{"name":"IAM","cors":true},"importexport":{"name":"ImportExport"},"inspector":{"name":"Inspector","versions":["2015-08-18*"],"cors":true},"iot":{"name":"Iot","cors":true},"iotdata":{"prefix":"iot-data","name":"IotData","cors":true},"kinesis":{"name":"Kinesis","cors":true},"kinesisanalytics":{"name":"KinesisAnalytics"},"kms":{"name":"KMS","cors":true},"lambda":{"name":"Lambda","cors":true},"lexruntime":{"prefix":"runtime.lex","name":"LexRuntime","cors":true},"lightsail":{"name":"Lightsail"},"machinelearning":{"name":"MachineLearning","cors":true},"marketplacecommerceanalytics":{"name":"MarketplaceCommerceAnalytics","cors":true},"marketplacemetering":{"prefix":"meteringmarketplace","name":"MarketplaceMetering"},"mturk":{"prefix":"mturk-requester","name":"MTurk","cors":true},"mobileanalytics":{"name":"MobileAnalytics","cors":true},"opsworks":{"name":"OpsWorks","cors":true},"opsworkscm":{"name":"OpsWorksCM"},"organizations":{"name":"Organizations"},"pinpoint":{"name":"Pinpoint"},"polly":{"name":"Polly","cors":true},"rds":{"name":"RDS","versions":["2014-09-01*"],"cors":true},"redshift":{"name":"Redshift","cors":true},"rekognition":{"name":"Rekognition","cors":true},"resourcegroupstaggingapi":{"name":"ResourceGroupsTaggingAPI"},"route53":{"name":"Route53","cors":true},"route53domains":{"name":"Route53Domains","cors":true},"s3":{"name":"S3","dualstackAvailable":true,"cors":true},"s3control":{"name":"S3Control","dualstackAvailable":true,"xmlNoDefaultLists":true},"servicecatalog":{"name":"ServiceCatalog","cors":true},"ses":{"prefix":"email","name":"SES","cors":true},"shield":{"name":"Shield"},"simpledb":{"prefix":"sdb","name":"SimpleDB"},"sms":{"name":"SMS"},"snowball":{"name":"Snowball"},"sns":{"name":"SNS","cors":true},"sqs":{"name":"SQS","cors":true},"ssm":{"name":"SSM","cors":true},"storagegateway":{"name":"StorageGateway","cors":true},"stepfunctions":{"prefix":"states","name":"StepFunctions"},"sts":{"name":"STS","cors":true},"support":{"name":"Support"},"swf":{"name":"SWF"},"xray":{"name":"XRay","cors":true},"waf":{"name":"WAF","cors":true},"wafregional":{"prefix":"waf-regional","name":"WAFRegional"},"workdocs":{"name":"WorkDocs","cors":true},"workspaces":{"name":"WorkSpaces"},"codestar":{"name":"CodeStar"},"lexmodelbuildingservice":{"prefix":"lex-models","name":"LexModelBuildingService","cors":true},"marketplaceentitlementservice":{"prefix":"entitlement.marketplace","name":"MarketplaceEntitlementService"},"athena":{"name":"Athena"},"greengrass":{"name":"Greengrass"},"dax":{"name":"DAX"},"migrationhub":{"prefix":"AWSMigrationHub","name":"MigrationHub"},"cloudhsmv2":{"name":"CloudHSMV2"},"glue":{"name":"Glue"},"mobile":{"name":"Mobile"},"pricing":{"name":"Pricing","cors":true},"costexplorer":{"prefix":"ce","name":"CostExplorer","cors":true},"mediaconvert":{"name":"MediaConvert"},"medialive":{"name":"MediaLive"},"mediapackage":{"name":"MediaPackage"},"mediastore":{"name":"MediaStore"},"mediastoredata":{"prefix":"mediastore-data","name":"MediaStoreData","cors":true},"appsync":{"name":"AppSync"},"guardduty":{"name":"GuardDuty"},"mq":{"name":"MQ"},"comprehend":{"name":"Comprehend","cors":true},"iotjobsdataplane":{"prefix":"iot-jobs-data","name":"IoTJobsDataPlane"},"kinesisvideoarchivedmedia":{"prefix":"kinesis-video-archived-media","name":"KinesisVideoArchivedMedia","cors":true},"kinesisvideomedia":{"prefix":"kinesis-video-media","name":"KinesisVideoMedia","cors":true},"kinesisvideo":{"name":"KinesisVideo","cors":true},"sagemakerruntime":{"prefix":"runtime.sagemaker","name":"SageMakerRuntime"},"sagemaker":{"name":"SageMaker"},"translate":{"name":"Translate","cors":true},"resourcegroups":{"prefix":"resource-groups","name":"ResourceGroups","cors":true},"alexaforbusiness":{"name":"AlexaForBusiness"},"cloud9":{"name":"Cloud9"},"serverlessapplicationrepository":{"prefix":"serverlessrepo","name":"ServerlessApplicationRepository"},"servicediscovery":{"name":"ServiceDiscovery"},"workmail":{"name":"WorkMail"},"autoscalingplans":{"prefix":"autoscaling-plans","name":"AutoScalingPlans"},"transcribeservice":{"prefix":"transcribe","name":"TranscribeService"},"connect":{"name":"Connect","cors":true},"acmpca":{"prefix":"acm-pca","name":"ACMPCA"},"fms":{"name":"FMS"},"secretsmanager":{"name":"SecretsManager","cors":true},"iotanalytics":{"name":"IoTAnalytics","cors":true},"iot1clickdevicesservice":{"prefix":"iot1click-devices","name":"IoT1ClickDevicesService"},"iot1clickprojects":{"prefix":"iot1click-projects","name":"IoT1ClickProjects"},"pi":{"name":"PI"},"neptune":{"name":"Neptune"},"mediatailor":{"name":"MediaTailor"},"eks":{"name":"EKS"},"macie":{"name":"Macie"},"dlm":{"name":"DLM"},"signer":{"name":"Signer"},"chime":{"name":"Chime"},"pinpointemail":{"prefix":"pinpoint-email","name":"PinpointEmail"},"ram":{"name":"RAM"},"route53resolver":{"name":"Route53Resolver"},"pinpointsmsvoice":{"prefix":"sms-voice","name":"PinpointSMSVoice"},"quicksight":{"name":"QuickSight"},"rdsdataservice":{"prefix":"rds-data","name":"RDSDataService"},"amplify":{"name":"Amplify"},"datasync":{"name":"DataSync"},"robomaker":{"name":"RoboMaker"},"transfer":{"name":"Transfer"},"globalaccelerator":{"name":"GlobalAccelerator"},"comprehendmedical":{"name":"ComprehendMedical","cors":true},"kinesisanalyticsv2":{"name":"KinesisAnalyticsV2"},"mediaconnect":{"name":"MediaConnect"},"fsx":{"name":"FSx"},"securityhub":{"name":"SecurityHub"},"appmesh":{"name":"AppMesh","versions":["2018-10-01*"]},"licensemanager":{"prefix":"license-manager","name":"LicenseManager"},"kafka":{"name":"Kafka"},"apigatewaymanagementapi":{"name":"ApiGatewayManagementApi"},"apigatewayv2":{"name":"ApiGatewayV2"},"docdb":{"name":"DocDB"},"backup":{"name":"Backup"},"worklink":{"name":"WorkLink"},"textract":{"name":"Textract"},"managedblockchain":{"name":"ManagedBlockchain"},"mediapackagevod":{"prefix":"mediapackage-vod","name":"MediaPackageVod"},"groundstation":{"name":"GroundStation"},"iotthingsgraph":{"name":"IoTThingsGraph"},"iotevents":{"name":"IoTEvents"},"ioteventsdata":{"prefix":"iotevents-data","name":"IoTEventsData"},"personalize":{"name":"Personalize","cors":true},"personalizeevents":{"prefix":"personalize-events","name":"PersonalizeEvents","cors":true},"personalizeruntime":{"prefix":"personalize-runtime","name":"PersonalizeRuntime","cors":true},"applicationinsights":{"prefix":"application-insights","name":"ApplicationInsights"},"servicequotas":{"prefix":"service-quotas","name":"ServiceQuotas"},"ec2instanceconnect":{"prefix":"ec2-instance-connect","name":"EC2InstanceConnect"},"eventbridge":{"name":"EventBridge"},"lakeformation":{"name":"LakeFormation"},"forecastservice":{"prefix":"forecast","name":"ForecastService","cors":true},"forecastqueryservice":{"prefix":"forecastquery","name":"ForecastQueryService","cors":true},"qldb":{"name":"QLDB"},"qldbsession":{"prefix":"qldb-session","name":"QLDBSession"},"workmailmessageflow":{"name":"WorkMailMessageFlow"},"codestarnotifications":{"prefix":"codestar-notifications","name":"CodeStarNotifications"},"savingsplans":{"name":"SavingsPlans"},"sso":{"name":"SSO"},"ssooidc":{"prefix":"sso-oidc","name":"SSOOIDC"},"marketplacecatalog":{"prefix":"marketplace-catalog","name":"MarketplaceCatalog"},"dataexchange":{"name":"DataExchange"},"sesv2":{"name":"SESV2"},"migrationhubconfig":{"prefix":"migrationhub-config","name":"MigrationHubConfig"},"connectparticipant":{"name":"ConnectParticipant"},"appconfig":{"name":"AppConfig"},"iotsecuretunneling":{"name":"IoTSecureTunneling"},"wafv2":{"name":"WAFV2"},"elasticinference":{"prefix":"elastic-inference","name":"ElasticInference"},"imagebuilder":{"name":"Imagebuilder"},"schemas":{"name":"Schemas"},"accessanalyzer":{"name":"AccessAnalyzer"},"codegurureviewer":{"prefix":"codeguru-reviewer","name":"CodeGuruReviewer"},"codeguruprofiler":{"name":"CodeGuruProfiler"},"computeoptimizer":{"prefix":"compute-optimizer","name":"ComputeOptimizer"},"frauddetector":{"name":"FraudDetector"},"kendra":{"name":"Kendra"},"networkmanager":{"name":"NetworkManager"},"outposts":{"name":"Outposts"},"augmentedairuntime":{"prefix":"sagemaker-a2i-runtime","name":"AugmentedAIRuntime"},"ebs":{"name":"EBS"},"kinesisvideosignalingchannels":{"prefix":"kinesis-video-signaling","name":"KinesisVideoSignalingChannels","cors":true},"detective":{"name":"Detective"},"codestarconnections":{"prefix":"codestar-connections","name":"CodeStarconnections"}};
+module.exports = {"acm":{"name":"ACM","cors":true},"apigateway":{"name":"APIGateway","cors":true},"applicationautoscaling":{"prefix":"application-autoscaling","name":"ApplicationAutoScaling","cors":true},"appstream":{"name":"AppStream"},"autoscaling":{"name":"AutoScaling","cors":true},"batch":{"name":"Batch"},"budgets":{"name":"Budgets"},"clouddirectory":{"name":"CloudDirectory","versions":["2016-05-10*"]},"cloudformation":{"name":"CloudFormation","cors":true},"cloudfront":{"name":"CloudFront","versions":["2013-05-12*","2013-11-11*","2014-05-31*","2014-10-21*","2014-11-06*","2015-04-17*","2015-07-27*","2015-09-17*","2016-01-13*","2016-01-28*","2016-08-01*","2016-08-20*","2016-09-07*","2016-09-29*","2016-11-25*","2017-03-25*","2017-10-30*","2018-06-18*","2018-11-05*","2019-03-26*"],"cors":true},"cloudhsm":{"name":"CloudHSM","cors":true},"cloudsearch":{"name":"CloudSearch"},"cloudsearchdomain":{"name":"CloudSearchDomain"},"cloudtrail":{"name":"CloudTrail","cors":true},"cloudwatch":{"prefix":"monitoring","name":"CloudWatch","cors":true},"cloudwatchevents":{"prefix":"events","name":"CloudWatchEvents","versions":["2014-02-03*"],"cors":true},"cloudwatchlogs":{"prefix":"logs","name":"CloudWatchLogs","cors":true},"codebuild":{"name":"CodeBuild","cors":true},"codecommit":{"name":"CodeCommit","cors":true},"codedeploy":{"name":"CodeDeploy","cors":true},"codepipeline":{"name":"CodePipeline","cors":true},"cognitoidentity":{"prefix":"cognito-identity","name":"CognitoIdentity","cors":true},"cognitoidentityserviceprovider":{"prefix":"cognito-idp","name":"CognitoIdentityServiceProvider","cors":true},"cognitosync":{"prefix":"cognito-sync","name":"CognitoSync","cors":true},"configservice":{"prefix":"config","name":"ConfigService","cors":true},"cur":{"name":"CUR","cors":true},"datapipeline":{"name":"DataPipeline"},"devicefarm":{"name":"DeviceFarm","cors":true},"directconnect":{"name":"DirectConnect","cors":true},"directoryservice":{"prefix":"ds","name":"DirectoryService"},"discovery":{"name":"Discovery"},"dms":{"name":"DMS"},"dynamodb":{"name":"DynamoDB","cors":true},"dynamodbstreams":{"prefix":"streams.dynamodb","name":"DynamoDBStreams","cors":true},"ec2":{"name":"EC2","versions":["2013-06-15*","2013-10-15*","2014-02-01*","2014-05-01*","2014-06-15*","2014-09-01*","2014-10-01*","2015-03-01*","2015-04-15*","2015-10-01*","2016-04-01*","2016-09-15*"],"cors":true},"ecr":{"name":"ECR","cors":true},"ecs":{"name":"ECS","cors":true},"efs":{"prefix":"elasticfilesystem","name":"EFS","cors":true},"elasticache":{"name":"ElastiCache","versions":["2012-11-15*","2014-03-24*","2014-07-15*","2014-09-30*"],"cors":true},"elasticbeanstalk":{"name":"ElasticBeanstalk","cors":true},"elb":{"prefix":"elasticloadbalancing","name":"ELB","cors":true},"elbv2":{"prefix":"elasticloadbalancingv2","name":"ELBv2","cors":true},"emr":{"prefix":"elasticmapreduce","name":"EMR","cors":true},"es":{"name":"ES"},"elastictranscoder":{"name":"ElasticTranscoder","cors":true},"firehose":{"name":"Firehose","cors":true},"gamelift":{"name":"GameLift","cors":true},"glacier":{"name":"Glacier"},"health":{"name":"Health"},"iam":{"name":"IAM","cors":true},"importexport":{"name":"ImportExport"},"inspector":{"name":"Inspector","versions":["2015-08-18*"],"cors":true},"iot":{"name":"Iot","cors":true},"iotdata":{"prefix":"iot-data","name":"IotData","cors":true},"kinesis":{"name":"Kinesis","cors":true},"kinesisanalytics":{"name":"KinesisAnalytics"},"kms":{"name":"KMS","cors":true},"lambda":{"name":"Lambda","cors":true},"lexruntime":{"prefix":"runtime.lex","name":"LexRuntime","cors":true},"lightsail":{"name":"Lightsail"},"machinelearning":{"name":"MachineLearning","cors":true},"marketplacecommerceanalytics":{"name":"MarketplaceCommerceAnalytics","cors":true},"marketplacemetering":{"prefix":"meteringmarketplace","name":"MarketplaceMetering"},"mturk":{"prefix":"mturk-requester","name":"MTurk","cors":true},"mobileanalytics":{"name":"MobileAnalytics","cors":true},"opsworks":{"name":"OpsWorks","cors":true},"opsworkscm":{"name":"OpsWorksCM"},"organizations":{"name":"Organizations"},"pinpoint":{"name":"Pinpoint"},"polly":{"name":"Polly","cors":true},"rds":{"name":"RDS","versions":["2014-09-01*"],"cors":true},"redshift":{"name":"Redshift","cors":true},"rekognition":{"name":"Rekognition","cors":true},"resourcegroupstaggingapi":{"name":"ResourceGroupsTaggingAPI"},"route53":{"name":"Route53","cors":true},"route53domains":{"name":"Route53Domains","cors":true},"s3":{"name":"S3","dualstackAvailable":true,"cors":true},"s3control":{"name":"S3Control","dualstackAvailable":true,"xmlNoDefaultLists":true},"servicecatalog":{"name":"ServiceCatalog","cors":true},"ses":{"prefix":"email","name":"SES","cors":true},"shield":{"name":"Shield"},"simpledb":{"prefix":"sdb","name":"SimpleDB"},"sms":{"name":"SMS"},"snowball":{"name":"Snowball"},"sns":{"name":"SNS","cors":true},"sqs":{"name":"SQS","cors":true},"ssm":{"name":"SSM","cors":true},"storagegateway":{"name":"StorageGateway","cors":true},"stepfunctions":{"prefix":"states","name":"StepFunctions"},"sts":{"name":"STS","cors":true},"support":{"name":"Support"},"swf":{"name":"SWF"},"xray":{"name":"XRay","cors":true},"waf":{"name":"WAF","cors":true},"wafregional":{"prefix":"waf-regional","name":"WAFRegional"},"workdocs":{"name":"WorkDocs","cors":true},"workspaces":{"name":"WorkSpaces"},"codestar":{"name":"CodeStar"},"lexmodelbuildingservice":{"prefix":"lex-models","name":"LexModelBuildingService","cors":true},"marketplaceentitlementservice":{"prefix":"entitlement.marketplace","name":"MarketplaceEntitlementService"},"athena":{"name":"Athena"},"greengrass":{"name":"Greengrass"},"dax":{"name":"DAX"},"migrationhub":{"prefix":"AWSMigrationHub","name":"MigrationHub"},"cloudhsmv2":{"name":"CloudHSMV2"},"glue":{"name":"Glue"},"mobile":{"name":"Mobile"},"pricing":{"name":"Pricing","cors":true},"costexplorer":{"prefix":"ce","name":"CostExplorer","cors":true},"mediaconvert":{"name":"MediaConvert"},"medialive":{"name":"MediaLive"},"mediapackage":{"name":"MediaPackage"},"mediastore":{"name":"MediaStore"},"mediastoredata":{"prefix":"mediastore-data","name":"MediaStoreData","cors":true},"appsync":{"name":"AppSync"},"guardduty":{"name":"GuardDuty"},"mq":{"name":"MQ"},"comprehend":{"name":"Comprehend","cors":true},"iotjobsdataplane":{"prefix":"iot-jobs-data","name":"IoTJobsDataPlane"},"kinesisvideoarchivedmedia":{"prefix":"kinesis-video-archived-media","name":"KinesisVideoArchivedMedia","cors":true},"kinesisvideomedia":{"prefix":"kinesis-video-media","name":"KinesisVideoMedia","cors":true},"kinesisvideo":{"name":"KinesisVideo","cors":true},"sagemakerruntime":{"prefix":"runtime.sagemaker","name":"SageMakerRuntime"},"sagemaker":{"name":"SageMaker"},"translate":{"name":"Translate","cors":true},"resourcegroups":{"prefix":"resource-groups","name":"ResourceGroups","cors":true},"alexaforbusiness":{"name":"AlexaForBusiness"},"cloud9":{"name":"Cloud9"},"serverlessapplicationrepository":{"prefix":"serverlessrepo","name":"ServerlessApplicationRepository"},"servicediscovery":{"name":"ServiceDiscovery"},"workmail":{"name":"WorkMail"},"autoscalingplans":{"prefix":"autoscaling-plans","name":"AutoScalingPlans"},"transcribeservice":{"prefix":"transcribe","name":"TranscribeService"},"connect":{"name":"Connect","cors":true},"acmpca":{"prefix":"acm-pca","name":"ACMPCA"},"fms":{"name":"FMS"},"secretsmanager":{"name":"SecretsManager","cors":true},"iotanalytics":{"name":"IoTAnalytics","cors":true},"iot1clickdevicesservice":{"prefix":"iot1click-devices","name":"IoT1ClickDevicesService"},"iot1clickprojects":{"prefix":"iot1click-projects","name":"IoT1ClickProjects"},"pi":{"name":"PI"},"neptune":{"name":"Neptune"},"mediatailor":{"name":"MediaTailor"},"eks":{"name":"EKS"},"macie":{"name":"Macie"},"dlm":{"name":"DLM"},"signer":{"name":"Signer"},"chime":{"name":"Chime"},"pinpointemail":{"prefix":"pinpoint-email","name":"PinpointEmail"},"ram":{"name":"RAM"},"route53resolver":{"name":"Route53Resolver"},"pinpointsmsvoice":{"prefix":"sms-voice","name":"PinpointSMSVoice"},"quicksight":{"name":"QuickSight"},"rdsdataservice":{"prefix":"rds-data","name":"RDSDataService"},"amplify":{"name":"Amplify"},"datasync":{"name":"DataSync"},"robomaker":{"name":"RoboMaker"},"transfer":{"name":"Transfer"},"globalaccelerator":{"name":"GlobalAccelerator"},"comprehendmedical":{"name":"ComprehendMedical","cors":true},"kinesisanalyticsv2":{"name":"KinesisAnalyticsV2"},"mediaconnect":{"name":"MediaConnect"},"fsx":{"name":"FSx"},"securityhub":{"name":"SecurityHub"},"appmesh":{"name":"AppMesh","versions":["2018-10-01*"]},"licensemanager":{"prefix":"license-manager","name":"LicenseManager"},"kafka":{"name":"Kafka"},"apigatewaymanagementapi":{"name":"ApiGatewayManagementApi"},"apigatewayv2":{"name":"ApiGatewayV2"},"docdb":{"name":"DocDB"},"backup":{"name":"Backup"},"worklink":{"name":"WorkLink"},"textract":{"name":"Textract"},"managedblockchain":{"name":"ManagedBlockchain"},"mediapackagevod":{"prefix":"mediapackage-vod","name":"MediaPackageVod"},"groundstation":{"name":"GroundStation"},"iotthingsgraph":{"name":"IoTThingsGraph"},"iotevents":{"name":"IoTEvents"},"ioteventsdata":{"prefix":"iotevents-data","name":"IoTEventsData"},"personalize":{"name":"Personalize","cors":true},"personalizeevents":{"prefix":"personalize-events","name":"PersonalizeEvents","cors":true},"personalizeruntime":{"prefix":"personalize-runtime","name":"PersonalizeRuntime","cors":true},"applicationinsights":{"prefix":"application-insights","name":"ApplicationInsights"},"servicequotas":{"prefix":"service-quotas","name":"ServiceQuotas"},"ec2instanceconnect":{"prefix":"ec2-instance-connect","name":"EC2InstanceConnect"},"eventbridge":{"name":"EventBridge"},"lakeformation":{"name":"LakeFormation"},"forecastservice":{"prefix":"forecast","name":"ForecastService","cors":true},"forecastqueryservice":{"prefix":"forecastquery","name":"ForecastQueryService","cors":true},"qldb":{"name":"QLDB"},"qldbsession":{"prefix":"qldb-session","name":"QLDBSession"},"workmailmessageflow":{"name":"WorkMailMessageFlow"},"codestarnotifications":{"prefix":"codestar-notifications","name":"CodeStarNotifications"},"savingsplans":{"name":"SavingsPlans"},"sso":{"name":"SSO"},"ssooidc":{"prefix":"sso-oidc","name":"SSOOIDC"},"marketplacecatalog":{"prefix":"marketplace-catalog","name":"MarketplaceCatalog"},"dataexchange":{"name":"DataExchange"},"sesv2":{"name":"SESV2"},"migrationhubconfig":{"prefix":"migrationhub-config","name":"MigrationHubConfig"},"connectparticipant":{"name":"ConnectParticipant"},"appconfig":{"name":"AppConfig"},"iotsecuretunneling":{"name":"IoTSecureTunneling"},"wafv2":{"name":"WAFV2"},"elasticinference":{"prefix":"elastic-inference","name":"ElasticInference"},"imagebuilder":{"name":"Imagebuilder"},"schemas":{"name":"Schemas"},"accessanalyzer":{"name":"AccessAnalyzer"},"codegurureviewer":{"prefix":"codeguru-reviewer","name":"CodeGuruReviewer"},"codeguruprofiler":{"name":"CodeGuruProfiler"},"computeoptimizer":{"prefix":"compute-optimizer","name":"ComputeOptimizer"},"frauddetector":{"name":"FraudDetector"},"kendra":{"name":"Kendra"},"networkmanager":{"name":"NetworkManager"},"outposts":{"name":"Outposts"},"augmentedairuntime":{"prefix":"sagemaker-a2i-runtime","name":"AugmentedAIRuntime"},"ebs":{"name":"EBS"},"kinesisvideosignalingchannels":{"prefix":"kinesis-video-signaling","name":"KinesisVideoSignalingChannels","cors":true},"detective":{"name":"Detective"},"codestarconnections":{"prefix":"codestar-connections","name":"CodeStarconnections"},"synthetics":{"name":"Synthetics"},"iotsitewise":{"name":"IoTSiteWise"},"macie2":{"name":"Macie2"},"codeartifact":{"name":"CodeArtifact"},"honeycode":{"name":"Honeycode"},"ivs":{"name":"IVS"}};
 
 /***/ }),
 
@@ -12467,7 +12523,7 @@ AWS.HttpClient.getInstance = function getInstance() {
 /***/ 715:
 /***/ (function(module) {
 
-module.exports = {"version":"2.0","metadata":{"apiVersion":"2011-06-15","endpointPrefix":"sts","globalEndpoint":"sts.amazonaws.com","protocol":"query","serviceAbbreviation":"AWS STS","serviceFullName":"AWS Security Token Service","serviceId":"STS","signatureVersion":"v4","uid":"sts-2011-06-15","xmlNamespace":"https://sts.amazonaws.com/doc/2011-06-15/"},"operations":{"AssumeRole":{"input":{"type":"structure","required":["RoleArn","RoleSessionName"],"members":{"RoleArn":{},"RoleSessionName":{},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"},"Tags":{"shape":"S8"},"TransitiveTagKeys":{"type":"list","member":{}},"ExternalId":{},"SerialNumber":{},"TokenCode":{}}},"output":{"resultWrapper":"AssumeRoleResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"AssumedRoleUser":{"shape":"Sm"},"PackedPolicySize":{"type":"integer"}}}},"AssumeRoleWithSAML":{"input":{"type":"structure","required":["RoleArn","PrincipalArn","SAMLAssertion"],"members":{"RoleArn":{},"PrincipalArn":{},"SAMLAssertion":{},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"}}},"output":{"resultWrapper":"AssumeRoleWithSAMLResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"AssumedRoleUser":{"shape":"Sm"},"PackedPolicySize":{"type":"integer"},"Subject":{},"SubjectType":{},"Issuer":{},"Audience":{},"NameQualifier":{}}}},"AssumeRoleWithWebIdentity":{"input":{"type":"structure","required":["RoleArn","RoleSessionName","WebIdentityToken"],"members":{"RoleArn":{},"RoleSessionName":{},"WebIdentityToken":{},"ProviderId":{},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"}}},"output":{"resultWrapper":"AssumeRoleWithWebIdentityResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"SubjectFromWebIdentityToken":{},"AssumedRoleUser":{"shape":"Sm"},"PackedPolicySize":{"type":"integer"},"Provider":{},"Audience":{}}}},"DecodeAuthorizationMessage":{"input":{"type":"structure","required":["EncodedMessage"],"members":{"EncodedMessage":{}}},"output":{"resultWrapper":"DecodeAuthorizationMessageResult","type":"structure","members":{"DecodedMessage":{}}}},"GetAccessKeyInfo":{"input":{"type":"structure","required":["AccessKeyId"],"members":{"AccessKeyId":{}}},"output":{"resultWrapper":"GetAccessKeyInfoResult","type":"structure","members":{"Account":{}}}},"GetCallerIdentity":{"input":{"type":"structure","members":{}},"output":{"resultWrapper":"GetCallerIdentityResult","type":"structure","members":{"UserId":{},"Account":{},"Arn":{}}}},"GetFederationToken":{"input":{"type":"structure","required":["Name"],"members":{"Name":{},"Policy":{},"PolicyArns":{"shape":"S4"},"DurationSeconds":{"type":"integer"},"Tags":{"shape":"S8"}}},"output":{"resultWrapper":"GetFederationTokenResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"FederatedUser":{"type":"structure","required":["FederatedUserId","Arn"],"members":{"FederatedUserId":{},"Arn":{}}},"PackedPolicySize":{"type":"integer"}}}},"GetSessionToken":{"input":{"type":"structure","members":{"DurationSeconds":{"type":"integer"},"SerialNumber":{},"TokenCode":{}}},"output":{"resultWrapper":"GetSessionTokenResult","type":"structure","members":{"Credentials":{"shape":"Sh"}}}}},"shapes":{"S4":{"type":"list","member":{"type":"structure","members":{"arn":{}}}},"S8":{"type":"list","member":{"type":"structure","required":["Key","Value"],"members":{"Key":{},"Value":{}}}},"Sh":{"type":"structure","required":["AccessKeyId","SecretAccessKey","SessionToken","Expiration"],"members":{"AccessKeyId":{},"SecretAccessKey":{},"SessionToken":{},"Expiration":{"type":"timestamp"}}},"Sm":{"type":"structure","required":["AssumedRoleId","Arn"],"members":{"AssumedRoleId":{},"Arn":{}}}}};
+module.exports = {"version":"2.0","metadata":{"apiVersion":"2011-06-15","endpointPrefix":"sts","globalEndpoint":"sts.amazonaws.com","protocol":"query","serviceAbbreviation":"AWS STS","serviceFullName":"AWS Security Token Service","serviceId":"STS","signatureVersion":"v4","uid":"sts-2011-06-15","xmlNamespace":"https://sts.amazonaws.com/doc/2011-06-15/"},"operations":{"AssumeRole":{"input":{"type":"structure","required":["RoleArn","RoleSessionName"],"members":{"RoleArn":{},"RoleSessionName":{},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"},"Tags":{"shape":"S8"},"TransitiveTagKeys":{"type":"list","member":{}},"ExternalId":{},"SerialNumber":{},"TokenCode":{}}},"output":{"resultWrapper":"AssumeRoleResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"AssumedRoleUser":{"shape":"Sm"},"PackedPolicySize":{"type":"integer"}}}},"AssumeRoleWithSAML":{"input":{"type":"structure","required":["RoleArn","PrincipalArn","SAMLAssertion"],"members":{"RoleArn":{},"PrincipalArn":{},"SAMLAssertion":{"type":"string","sensitive":true},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"}}},"output":{"resultWrapper":"AssumeRoleWithSAMLResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"AssumedRoleUser":{"shape":"Sm"},"PackedPolicySize":{"type":"integer"},"Subject":{},"SubjectType":{},"Issuer":{},"Audience":{},"NameQualifier":{}}}},"AssumeRoleWithWebIdentity":{"input":{"type":"structure","required":["RoleArn","RoleSessionName","WebIdentityToken"],"members":{"RoleArn":{},"RoleSessionName":{},"WebIdentityToken":{"type":"string","sensitive":true},"ProviderId":{},"PolicyArns":{"shape":"S4"},"Policy":{},"DurationSeconds":{"type":"integer"}}},"output":{"resultWrapper":"AssumeRoleWithWebIdentityResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"SubjectFromWebIdentityToken":{},"AssumedRoleUser":{"shape":"Sm"},"PackedPolicySize":{"type":"integer"},"Provider":{},"Audience":{}}}},"DecodeAuthorizationMessage":{"input":{"type":"structure","required":["EncodedMessage"],"members":{"EncodedMessage":{}}},"output":{"resultWrapper":"DecodeAuthorizationMessageResult","type":"structure","members":{"DecodedMessage":{}}}},"GetAccessKeyInfo":{"input":{"type":"structure","required":["AccessKeyId"],"members":{"AccessKeyId":{}}},"output":{"resultWrapper":"GetAccessKeyInfoResult","type":"structure","members":{"Account":{}}}},"GetCallerIdentity":{"input":{"type":"structure","members":{}},"output":{"resultWrapper":"GetCallerIdentityResult","type":"structure","members":{"UserId":{},"Account":{},"Arn":{}}}},"GetFederationToken":{"input":{"type":"structure","required":["Name"],"members":{"Name":{},"Policy":{},"PolicyArns":{"shape":"S4"},"DurationSeconds":{"type":"integer"},"Tags":{"shape":"S8"}}},"output":{"resultWrapper":"GetFederationTokenResult","type":"structure","members":{"Credentials":{"shape":"Sh"},"FederatedUser":{"type":"structure","required":["FederatedUserId","Arn"],"members":{"FederatedUserId":{},"Arn":{}}},"PackedPolicySize":{"type":"integer"}}}},"GetSessionToken":{"input":{"type":"structure","members":{"DurationSeconds":{"type":"integer"},"SerialNumber":{},"TokenCode":{}}},"output":{"resultWrapper":"GetSessionTokenResult","type":"structure","members":{"Credentials":{"shape":"Sh"}}}}},"shapes":{"S4":{"type":"list","member":{"type":"structure","members":{"arn":{}}}},"S8":{"type":"list","member":{"type":"structure","required":["Key","Value"],"members":{"Key":{},"Value":{}}}},"Sh":{"type":"structure","required":["AccessKeyId","SecretAccessKey","SessionToken","Expiration"],"members":{"AccessKeyId":{},"SecretAccessKey":{},"SessionToken":{},"Expiration":{"type":"timestamp"}}},"Sm":{"type":"structure","required":["AssumedRoleId","Arn"],"members":{"AssumedRoleId":{},"Arn":{}}}}};
 
 /***/ }),
 
@@ -13552,6 +13608,25 @@ module.exports = AWS.Signers.V4;
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -13561,18 +13636,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.run = void 0;
 const core = __importStar(__webpack_require__(470));
+const fs = __importStar(__webpack_require__(747));
 const cloudwatch_1 = __importDefault(__webpack_require__(967));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -13580,26 +13650,34 @@ function run() {
             const namespace = core.getInput("namespace", { required: true });
             const metricName = core.getInput("metric-name", { required: true });
             const metricValue = core.getInput("metric-value", { required: true });
-            let metricValueAsFloat = 0.0;
-            switch (metricValue) {
-                case "true":
-                    metricValueAsFloat = 1.0;
-                    break;
-                case "false":
-                    metricValueAsFloat = 0.0;
-                    break;
-                default:
-                    metricValueAsFloat = Number(metricValue);
+            const metricDataPath = core.getInput("metric-data", { required: false });
+            let metricData = [];
+            if (metricDataPath) {
+                const contents = fs.readFileSync(metricDataPath, 'utf8');
+                metricData = JSON.parse(contents);
             }
-            const metricDimensions = core.getInput("metric-dimensions", {
-                required: true,
-            });
-            const metricDatum = {
-                MetricName: metricName,
-                Value: metricValueAsFloat,
-                Dimensions: JSON.parse(metricDimensions),
-            };
-            const metricData = [metricDatum];
+            else {
+                let metricValueAsFloat = 0.0;
+                switch (metricValue) {
+                    case "true":
+                        metricValueAsFloat = 1.0;
+                        break;
+                    case "false":
+                        metricValueAsFloat = 0.0;
+                        break;
+                    default:
+                        metricValueAsFloat = Number(metricValue);
+                }
+                const metricDimensions = core.getInput("metric-dimensions", {
+                    required: true,
+                });
+                const metricDatum = {
+                    MetricName: metricName,
+                    Value: metricValueAsFloat,
+                    Dimensions: JSON.parse(metricDimensions),
+                };
+                metricData = [metricDatum];
+            }
             core.info(`Publishing metrics ${JSON.stringify(metricData, null, 2)} under namespace ${namespace}`);
             const cloudwatch = new cloudwatch_1.default();
             yield cloudwatch
@@ -13713,7 +13791,7 @@ module.exports = resolveMonitoringConfig;
 /***/ 764:
 /***/ (function(module) {
 
-module.exports = {"version":"2.0","metadata":{"apiVersion":"2010-08-01","endpointPrefix":"monitoring","protocol":"query","serviceAbbreviation":"CloudWatch","serviceFullName":"Amazon CloudWatch","serviceId":"CloudWatch","signatureVersion":"v4","uid":"monitoring-2010-08-01","xmlNamespace":"http://monitoring.amazonaws.com/doc/2010-08-01/"},"operations":{"DeleteAlarms":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DeleteAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{}}},"output":{"resultWrapper":"DeleteAnomalyDetectorResult","type":"structure","members":{}}},"DeleteDashboards":{"input":{"type":"structure","required":["DashboardNames"],"members":{"DashboardNames":{"type":"list","member":{}}}},"output":{"resultWrapper":"DeleteDashboardsResult","type":"structure","members":{}}},"DeleteInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DeleteInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"DescribeAlarmHistory":{"input":{"type":"structure","members":{"AlarmName":{},"AlarmTypes":{"shape":"Ss"},"HistoryItemType":{},"StartDate":{"type":"timestamp"},"EndDate":{"type":"timestamp"},"MaxRecords":{"type":"integer"},"NextToken":{},"ScanBy":{}}},"output":{"resultWrapper":"DescribeAlarmHistoryResult","type":"structure","members":{"AlarmHistoryItems":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"AlarmType":{},"Timestamp":{"type":"timestamp"},"HistoryItemType":{},"HistorySummary":{},"HistoryData":{}}}},"NextToken":{}}}},"DescribeAlarms":{"input":{"type":"structure","members":{"AlarmNames":{"shape":"S2"},"AlarmNamePrefix":{},"AlarmTypes":{"shape":"Ss"},"ChildrenOfAlarmName":{},"ParentsOfAlarmName":{},"StateValue":{},"ActionPrefix":{},"MaxRecords":{"type":"integer"},"NextToken":{}}},"output":{"resultWrapper":"DescribeAlarmsResult","type":"structure","members":{"CompositeAlarms":{"type":"list","member":{"type":"structure","members":{"ActionsEnabled":{"type":"boolean"},"AlarmActions":{"shape":"S1c"},"AlarmArn":{},"AlarmConfigurationUpdatedTimestamp":{"type":"timestamp"},"AlarmDescription":{},"AlarmName":{},"AlarmRule":{},"InsufficientDataActions":{"shape":"S1c"},"OKActions":{"shape":"S1c"},"StateReason":{},"StateReasonData":{},"StateUpdatedTimestamp":{"type":"timestamp"},"StateValue":{}},"xmlOrder":["ActionsEnabled","AlarmActions","AlarmArn","AlarmConfigurationUpdatedTimestamp","AlarmDescription","AlarmName","AlarmRule","InsufficientDataActions","OKActions","StateReason","StateReasonData","StateUpdatedTimestamp","StateValue"]}},"MetricAlarms":{"shape":"S1j"},"NextToken":{}}}},"DescribeAlarmsForMetric":{"input":{"type":"structure","required":["MetricName","Namespace"],"members":{"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{}}},"output":{"resultWrapper":"DescribeAlarmsForMetricResult","type":"structure","members":{"MetricAlarms":{"shape":"S1j"}}}},"DescribeAnomalyDetectors":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"},"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}}},"output":{"resultWrapper":"DescribeAnomalyDetectorsResult","type":"structure","members":{"AnomalyDetectors":{"type":"list","member":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S2b"},"StateValue":{}}}},"NextToken":{}}}},"DescribeInsightRules":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"}}},"output":{"resultWrapper":"DescribeInsightRulesResult","type":"structure","members":{"NextToken":{},"InsightRules":{"type":"list","member":{"type":"structure","required":["Name","State","Schema","Definition"],"members":{"Name":{},"State":{},"Schema":{},"Definition":{}}}}}}},"DisableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DisableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DisableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"EnableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"EnableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"EnableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"GetDashboard":{"input":{"type":"structure","required":["DashboardName"],"members":{"DashboardName":{}}},"output":{"resultWrapper":"GetDashboardResult","type":"structure","members":{"DashboardArn":{},"DashboardBody":{},"DashboardName":{}}}},"GetInsightRuleReport":{"input":{"type":"structure","required":["RuleName","StartTime","EndTime","Period"],"members":{"RuleName":{},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"MaxContributorCount":{"type":"integer"},"Metrics":{"type":"list","member":{}},"OrderBy":{}}},"output":{"resultWrapper":"GetInsightRuleReportResult","type":"structure","members":{"KeyLabels":{"type":"list","member":{}},"AggregationStatistic":{},"AggregateValue":{"type":"double"},"ApproximateUniqueCount":{"type":"long"},"Contributors":{"type":"list","member":{"type":"structure","required":["Keys","ApproximateAggregateValue","Datapoints"],"members":{"Keys":{"type":"list","member":{}},"ApproximateAggregateValue":{"type":"double"},"Datapoints":{"type":"list","member":{"type":"structure","required":["Timestamp","ApproximateValue"],"members":{"Timestamp":{"type":"timestamp"},"ApproximateValue":{"type":"double"}}}}}}},"MetricDatapoints":{"type":"list","member":{"type":"structure","required":["Timestamp"],"members":{"Timestamp":{"type":"timestamp"},"UniqueContributors":{"type":"double"},"MaxContributorValue":{"type":"double"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}}}}}},"GetMetricData":{"input":{"type":"structure","required":["MetricDataQueries","StartTime","EndTime"],"members":{"MetricDataQueries":{"shape":"S1v"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"NextToken":{},"ScanBy":{},"MaxDatapoints":{"type":"integer"}}},"output":{"resultWrapper":"GetMetricDataResult","type":"structure","members":{"MetricDataResults":{"type":"list","member":{"type":"structure","members":{"Id":{},"Label":{},"Timestamps":{"type":"list","member":{"type":"timestamp"}},"Values":{"type":"list","member":{"type":"double"}},"StatusCode":{},"Messages":{"shape":"S3q"}}}},"NextToken":{},"Messages":{"shape":"S3q"}}}},"GetMetricStatistics":{"input":{"type":"structure","required":["Namespace","MetricName","StartTime","EndTime","Period"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"Statistics":{"type":"list","member":{}},"ExtendedStatistics":{"type":"list","member":{}},"Unit":{}}},"output":{"resultWrapper":"GetMetricStatisticsResult","type":"structure","members":{"Label":{},"Datapoints":{"type":"list","member":{"type":"structure","members":{"Timestamp":{"type":"timestamp"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"},"Unit":{},"ExtendedStatistics":{"type":"map","key":{},"value":{"type":"double"}}},"xmlOrder":["Timestamp","SampleCount","Average","Sum","Minimum","Maximum","Unit","ExtendedStatistics"]}}}}},"GetMetricWidgetImage":{"input":{"type":"structure","required":["MetricWidget"],"members":{"MetricWidget":{},"OutputFormat":{}}},"output":{"resultWrapper":"GetMetricWidgetImageResult","type":"structure","members":{"MetricWidgetImage":{"type":"blob"}}}},"ListDashboards":{"input":{"type":"structure","members":{"DashboardNamePrefix":{},"NextToken":{}}},"output":{"resultWrapper":"ListDashboardsResult","type":"structure","members":{"DashboardEntries":{"type":"list","member":{"type":"structure","members":{"DashboardName":{},"DashboardArn":{},"LastModified":{"type":"timestamp"},"Size":{"type":"long"}}}},"NextToken":{}}}},"ListMetrics":{"input":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"type":"list","member":{"type":"structure","required":["Name"],"members":{"Name":{},"Value":{}}}},"NextToken":{}}},"output":{"resultWrapper":"ListMetricsResult","type":"structure","members":{"Metrics":{"type":"list","member":{"shape":"S1z"}},"NextToken":{}},"xmlOrder":["Metrics","NextToken"]}},"ListTagsForResource":{"input":{"type":"structure","required":["ResourceARN"],"members":{"ResourceARN":{}}},"output":{"resultWrapper":"ListTagsForResourceResult","type":"structure","members":{"Tags":{"shape":"S4l"}}}},"PutAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S2b"}}},"output":{"resultWrapper":"PutAnomalyDetectorResult","type":"structure","members":{}}},"PutCompositeAlarm":{"input":{"type":"structure","required":["AlarmName","AlarmRule"],"members":{"ActionsEnabled":{"type":"boolean"},"AlarmActions":{"shape":"S1c"},"AlarmDescription":{},"AlarmName":{},"AlarmRule":{},"InsufficientDataActions":{"shape":"S1c"},"OKActions":{"shape":"S1c"},"Tags":{"shape":"S4l"}}}},"PutDashboard":{"input":{"type":"structure","required":["DashboardName","DashboardBody"],"members":{"DashboardName":{},"DashboardBody":{}}},"output":{"resultWrapper":"PutDashboardResult","type":"structure","members":{"DashboardValidationMessages":{"type":"list","member":{"type":"structure","members":{"DataPath":{},"Message":{}}}}}}},"PutInsightRule":{"input":{"type":"structure","required":["RuleName","RuleDefinition"],"members":{"RuleName":{},"RuleState":{},"RuleDefinition":{},"Tags":{"shape":"S4l"}}},"output":{"resultWrapper":"PutInsightRuleResult","type":"structure","members":{}}},"PutMetricAlarm":{"input":{"type":"structure","required":["AlarmName","EvaluationPeriods","ComparisonOperator"],"members":{"AlarmName":{},"AlarmDescription":{},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1c"},"AlarmActions":{"shape":"S1c"},"InsufficientDataActions":{"shape":"S1c"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1v"},"Tags":{"shape":"S4l"},"ThresholdMetricId":{}}}},"PutMetricData":{"input":{"type":"structure","required":["Namespace","MetricData"],"members":{"Namespace":{},"MetricData":{"type":"list","member":{"type":"structure","required":["MetricName"],"members":{"MetricName":{},"Dimensions":{"shape":"S7"},"Timestamp":{"type":"timestamp"},"Value":{"type":"double"},"StatisticValues":{"type":"structure","required":["SampleCount","Sum","Minimum","Maximum"],"members":{"SampleCount":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}},"Values":{"type":"list","member":{"type":"double"}},"Counts":{"type":"list","member":{"type":"double"}},"Unit":{},"StorageResolution":{"type":"integer"}}}}}}},"SetAlarmState":{"input":{"type":"structure","required":["AlarmName","StateValue","StateReason"],"members":{"AlarmName":{},"StateValue":{},"StateReason":{},"StateReasonData":{}}}},"TagResource":{"input":{"type":"structure","required":["ResourceARN","Tags"],"members":{"ResourceARN":{},"Tags":{"shape":"S4l"}}},"output":{"resultWrapper":"TagResourceResult","type":"structure","members":{}}},"UntagResource":{"input":{"type":"structure","required":["ResourceARN","TagKeys"],"members":{"ResourceARN":{},"TagKeys":{"type":"list","member":{}}}},"output":{"resultWrapper":"UntagResourceResult","type":"structure","members":{}}}},"shapes":{"S2":{"type":"list","member":{}},"S7":{"type":"list","member":{"type":"structure","required":["Name","Value"],"members":{"Name":{},"Value":{}},"xmlOrder":["Name","Value"]}},"Si":{"type":"list","member":{}},"Sl":{"type":"list","member":{"type":"structure","members":{"FailureResource":{},"ExceptionType":{},"FailureCode":{},"FailureDescription":{}}}},"Ss":{"type":"list","member":{}},"S1c":{"type":"list","member":{}},"S1j":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"AlarmArn":{},"AlarmDescription":{},"AlarmConfigurationUpdatedTimestamp":{"type":"timestamp"},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1c"},"AlarmActions":{"shape":"S1c"},"InsufficientDataActions":{"shape":"S1c"},"StateValue":{},"StateReason":{},"StateReasonData":{},"StateUpdatedTimestamp":{"type":"timestamp"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1v"},"ThresholdMetricId":{}},"xmlOrder":["AlarmName","AlarmArn","AlarmDescription","AlarmConfigurationUpdatedTimestamp","ActionsEnabled","OKActions","AlarmActions","InsufficientDataActions","StateValue","StateReason","StateReasonData","StateUpdatedTimestamp","MetricName","Namespace","Statistic","Dimensions","Period","Unit","EvaluationPeriods","Threshold","ComparisonOperator","ExtendedStatistic","TreatMissingData","EvaluateLowSampleCountPercentile","DatapointsToAlarm","Metrics","ThresholdMetricId"]}},"S1v":{"type":"list","member":{"type":"structure","required":["Id"],"members":{"Id":{},"MetricStat":{"type":"structure","required":["Metric","Period","Stat"],"members":{"Metric":{"shape":"S1z"},"Period":{"type":"integer"},"Stat":{},"Unit":{}}},"Expression":{},"Label":{},"ReturnData":{"type":"boolean"},"Period":{"type":"integer"}}}},"S1z":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}},"xmlOrder":["Namespace","MetricName","Dimensions"]},"S2b":{"type":"structure","members":{"ExcludedTimeRanges":{"type":"list","member":{"type":"structure","required":["StartTime","EndTime"],"members":{"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"}},"xmlOrder":["StartTime","EndTime"]}},"MetricTimezone":{}}},"S3q":{"type":"list","member":{"type":"structure","members":{"Code":{},"Value":{}}}},"S4l":{"type":"list","member":{"type":"structure","required":["Key","Value"],"members":{"Key":{},"Value":{}}}}}};
+module.exports = {"version":"2.0","metadata":{"apiVersion":"2010-08-01","endpointPrefix":"monitoring","protocol":"query","serviceAbbreviation":"CloudWatch","serviceFullName":"Amazon CloudWatch","serviceId":"CloudWatch","signatureVersion":"v4","uid":"monitoring-2010-08-01","xmlNamespace":"http://monitoring.amazonaws.com/doc/2010-08-01/"},"operations":{"DeleteAlarms":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DeleteAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{}}},"output":{"resultWrapper":"DeleteAnomalyDetectorResult","type":"structure","members":{}}},"DeleteDashboards":{"input":{"type":"structure","required":["DashboardNames"],"members":{"DashboardNames":{"type":"list","member":{}}}},"output":{"resultWrapper":"DeleteDashboardsResult","type":"structure","members":{}}},"DeleteInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DeleteInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"DescribeAlarmHistory":{"input":{"type":"structure","members":{"AlarmName":{},"AlarmTypes":{"shape":"Ss"},"HistoryItemType":{},"StartDate":{"type":"timestamp"},"EndDate":{"type":"timestamp"},"MaxRecords":{"type":"integer"},"NextToken":{},"ScanBy":{}}},"output":{"resultWrapper":"DescribeAlarmHistoryResult","type":"structure","members":{"AlarmHistoryItems":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"AlarmType":{},"Timestamp":{"type":"timestamp"},"HistoryItemType":{},"HistorySummary":{},"HistoryData":{}}}},"NextToken":{}}}},"DescribeAlarms":{"input":{"type":"structure","members":{"AlarmNames":{"shape":"S2"},"AlarmNamePrefix":{},"AlarmTypes":{"shape":"Ss"},"ChildrenOfAlarmName":{},"ParentsOfAlarmName":{},"StateValue":{},"ActionPrefix":{},"MaxRecords":{"type":"integer"},"NextToken":{}}},"output":{"resultWrapper":"DescribeAlarmsResult","type":"structure","members":{"CompositeAlarms":{"type":"list","member":{"type":"structure","members":{"ActionsEnabled":{"type":"boolean"},"AlarmActions":{"shape":"S1c"},"AlarmArn":{},"AlarmConfigurationUpdatedTimestamp":{"type":"timestamp"},"AlarmDescription":{},"AlarmName":{},"AlarmRule":{},"InsufficientDataActions":{"shape":"S1c"},"OKActions":{"shape":"S1c"},"StateReason":{},"StateReasonData":{},"StateUpdatedTimestamp":{"type":"timestamp"},"StateValue":{}},"xmlOrder":["ActionsEnabled","AlarmActions","AlarmArn","AlarmConfigurationUpdatedTimestamp","AlarmDescription","AlarmName","AlarmRule","InsufficientDataActions","OKActions","StateReason","StateReasonData","StateUpdatedTimestamp","StateValue"]}},"MetricAlarms":{"shape":"S1j"},"NextToken":{}}}},"DescribeAlarmsForMetric":{"input":{"type":"structure","required":["MetricName","Namespace"],"members":{"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{}}},"output":{"resultWrapper":"DescribeAlarmsForMetricResult","type":"structure","members":{"MetricAlarms":{"shape":"S1j"}}}},"DescribeAnomalyDetectors":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"},"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}}},"output":{"resultWrapper":"DescribeAnomalyDetectorsResult","type":"structure","members":{"AnomalyDetectors":{"type":"list","member":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S2b"},"StateValue":{}}}},"NextToken":{}}}},"DescribeInsightRules":{"input":{"type":"structure","members":{"NextToken":{},"MaxResults":{"type":"integer"}}},"output":{"resultWrapper":"DescribeInsightRulesResult","type":"structure","members":{"NextToken":{},"InsightRules":{"type":"list","member":{"type":"structure","required":["Name","State","Schema","Definition"],"members":{"Name":{},"State":{},"Schema":{},"Definition":{}}}}}}},"DisableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"DisableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"DisableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"EnableAlarmActions":{"input":{"type":"structure","required":["AlarmNames"],"members":{"AlarmNames":{"shape":"S2"}}}},"EnableInsightRules":{"input":{"type":"structure","required":["RuleNames"],"members":{"RuleNames":{"shape":"Si"}}},"output":{"resultWrapper":"EnableInsightRulesResult","type":"structure","members":{"Failures":{"shape":"Sl"}}}},"GetDashboard":{"input":{"type":"structure","required":["DashboardName"],"members":{"DashboardName":{}}},"output":{"resultWrapper":"GetDashboardResult","type":"structure","members":{"DashboardArn":{},"DashboardBody":{},"DashboardName":{}}}},"GetInsightRuleReport":{"input":{"type":"structure","required":["RuleName","StartTime","EndTime","Period"],"members":{"RuleName":{},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"MaxContributorCount":{"type":"integer"},"Metrics":{"type":"list","member":{}},"OrderBy":{}}},"output":{"resultWrapper":"GetInsightRuleReportResult","type":"structure","members":{"KeyLabels":{"type":"list","member":{}},"AggregationStatistic":{},"AggregateValue":{"type":"double"},"ApproximateUniqueCount":{"type":"long"},"Contributors":{"type":"list","member":{"type":"structure","required":["Keys","ApproximateAggregateValue","Datapoints"],"members":{"Keys":{"type":"list","member":{}},"ApproximateAggregateValue":{"type":"double"},"Datapoints":{"type":"list","member":{"type":"structure","required":["Timestamp","ApproximateValue"],"members":{"Timestamp":{"type":"timestamp"},"ApproximateValue":{"type":"double"}}}}}}},"MetricDatapoints":{"type":"list","member":{"type":"structure","required":["Timestamp"],"members":{"Timestamp":{"type":"timestamp"},"UniqueContributors":{"type":"double"},"MaxContributorValue":{"type":"double"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}}}}}},"GetMetricData":{"input":{"type":"structure","required":["MetricDataQueries","StartTime","EndTime"],"members":{"MetricDataQueries":{"shape":"S1v"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"NextToken":{},"ScanBy":{},"MaxDatapoints":{"type":"integer"}}},"output":{"resultWrapper":"GetMetricDataResult","type":"structure","members":{"MetricDataResults":{"type":"list","member":{"type":"structure","members":{"Id":{},"Label":{},"Timestamps":{"type":"list","member":{"type":"timestamp"}},"Values":{"type":"list","member":{"type":"double"}},"StatusCode":{},"Messages":{"shape":"S3q"}}}},"NextToken":{},"Messages":{"shape":"S3q"}}}},"GetMetricStatistics":{"input":{"type":"structure","required":["Namespace","MetricName","StartTime","EndTime","Period"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"},"Period":{"type":"integer"},"Statistics":{"type":"list","member":{}},"ExtendedStatistics":{"type":"list","member":{}},"Unit":{}}},"output":{"resultWrapper":"GetMetricStatisticsResult","type":"structure","members":{"Label":{},"Datapoints":{"type":"list","member":{"type":"structure","members":{"Timestamp":{"type":"timestamp"},"SampleCount":{"type":"double"},"Average":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"},"Unit":{},"ExtendedStatistics":{"type":"map","key":{},"value":{"type":"double"}}},"xmlOrder":["Timestamp","SampleCount","Average","Sum","Minimum","Maximum","Unit","ExtendedStatistics"]}}}}},"GetMetricWidgetImage":{"input":{"type":"structure","required":["MetricWidget"],"members":{"MetricWidget":{},"OutputFormat":{}}},"output":{"resultWrapper":"GetMetricWidgetImageResult","type":"structure","members":{"MetricWidgetImage":{"type":"blob"}}}},"ListDashboards":{"input":{"type":"structure","members":{"DashboardNamePrefix":{},"NextToken":{}}},"output":{"resultWrapper":"ListDashboardsResult","type":"structure","members":{"DashboardEntries":{"type":"list","member":{"type":"structure","members":{"DashboardName":{},"DashboardArn":{},"LastModified":{"type":"timestamp"},"Size":{"type":"long"}}}},"NextToken":{}}}},"ListMetrics":{"input":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"type":"list","member":{"type":"structure","required":["Name"],"members":{"Name":{},"Value":{}}}},"NextToken":{},"RecentlyActive":{}}},"output":{"resultWrapper":"ListMetricsResult","type":"structure","members":{"Metrics":{"type":"list","member":{"shape":"S1z"}},"NextToken":{}},"xmlOrder":["Metrics","NextToken"]}},"ListTagsForResource":{"input":{"type":"structure","required":["ResourceARN"],"members":{"ResourceARN":{}}},"output":{"resultWrapper":"ListTagsForResourceResult","type":"structure","members":{"Tags":{"shape":"S4m"}}}},"PutAnomalyDetector":{"input":{"type":"structure","required":["Namespace","MetricName","Stat"],"members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"},"Stat":{},"Configuration":{"shape":"S2b"}}},"output":{"resultWrapper":"PutAnomalyDetectorResult","type":"structure","members":{}}},"PutCompositeAlarm":{"input":{"type":"structure","required":["AlarmName","AlarmRule"],"members":{"ActionsEnabled":{"type":"boolean"},"AlarmActions":{"shape":"S1c"},"AlarmDescription":{},"AlarmName":{},"AlarmRule":{},"InsufficientDataActions":{"shape":"S1c"},"OKActions":{"shape":"S1c"},"Tags":{"shape":"S4m"}}}},"PutDashboard":{"input":{"type":"structure","required":["DashboardName","DashboardBody"],"members":{"DashboardName":{},"DashboardBody":{}}},"output":{"resultWrapper":"PutDashboardResult","type":"structure","members":{"DashboardValidationMessages":{"type":"list","member":{"type":"structure","members":{"DataPath":{},"Message":{}}}}}}},"PutInsightRule":{"input":{"type":"structure","required":["RuleName","RuleDefinition"],"members":{"RuleName":{},"RuleState":{},"RuleDefinition":{},"Tags":{"shape":"S4m"}}},"output":{"resultWrapper":"PutInsightRuleResult","type":"structure","members":{}}},"PutMetricAlarm":{"input":{"type":"structure","required":["AlarmName","EvaluationPeriods","ComparisonOperator"],"members":{"AlarmName":{},"AlarmDescription":{},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1c"},"AlarmActions":{"shape":"S1c"},"InsufficientDataActions":{"shape":"S1c"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1v"},"Tags":{"shape":"S4m"},"ThresholdMetricId":{}}}},"PutMetricData":{"input":{"type":"structure","required":["Namespace","MetricData"],"members":{"Namespace":{},"MetricData":{"type":"list","member":{"type":"structure","required":["MetricName"],"members":{"MetricName":{},"Dimensions":{"shape":"S7"},"Timestamp":{"type":"timestamp"},"Value":{"type":"double"},"StatisticValues":{"type":"structure","required":["SampleCount","Sum","Minimum","Maximum"],"members":{"SampleCount":{"type":"double"},"Sum":{"type":"double"},"Minimum":{"type":"double"},"Maximum":{"type":"double"}}},"Values":{"type":"list","member":{"type":"double"}},"Counts":{"type":"list","member":{"type":"double"}},"Unit":{},"StorageResolution":{"type":"integer"}}}}}}},"SetAlarmState":{"input":{"type":"structure","required":["AlarmName","StateValue","StateReason"],"members":{"AlarmName":{},"StateValue":{},"StateReason":{},"StateReasonData":{}}}},"TagResource":{"input":{"type":"structure","required":["ResourceARN","Tags"],"members":{"ResourceARN":{},"Tags":{"shape":"S4m"}}},"output":{"resultWrapper":"TagResourceResult","type":"structure","members":{}}},"UntagResource":{"input":{"type":"structure","required":["ResourceARN","TagKeys"],"members":{"ResourceARN":{},"TagKeys":{"type":"list","member":{}}}},"output":{"resultWrapper":"UntagResourceResult","type":"structure","members":{}}}},"shapes":{"S2":{"type":"list","member":{}},"S7":{"type":"list","member":{"type":"structure","required":["Name","Value"],"members":{"Name":{},"Value":{}},"xmlOrder":["Name","Value"]}},"Si":{"type":"list","member":{}},"Sl":{"type":"list","member":{"type":"structure","members":{"FailureResource":{},"ExceptionType":{},"FailureCode":{},"FailureDescription":{}}}},"Ss":{"type":"list","member":{}},"S1c":{"type":"list","member":{}},"S1j":{"type":"list","member":{"type":"structure","members":{"AlarmName":{},"AlarmArn":{},"AlarmDescription":{},"AlarmConfigurationUpdatedTimestamp":{"type":"timestamp"},"ActionsEnabled":{"type":"boolean"},"OKActions":{"shape":"S1c"},"AlarmActions":{"shape":"S1c"},"InsufficientDataActions":{"shape":"S1c"},"StateValue":{},"StateReason":{},"StateReasonData":{},"StateUpdatedTimestamp":{"type":"timestamp"},"MetricName":{},"Namespace":{},"Statistic":{},"ExtendedStatistic":{},"Dimensions":{"shape":"S7"},"Period":{"type":"integer"},"Unit":{},"EvaluationPeriods":{"type":"integer"},"DatapointsToAlarm":{"type":"integer"},"Threshold":{"type":"double"},"ComparisonOperator":{},"TreatMissingData":{},"EvaluateLowSampleCountPercentile":{},"Metrics":{"shape":"S1v"},"ThresholdMetricId":{}},"xmlOrder":["AlarmName","AlarmArn","AlarmDescription","AlarmConfigurationUpdatedTimestamp","ActionsEnabled","OKActions","AlarmActions","InsufficientDataActions","StateValue","StateReason","StateReasonData","StateUpdatedTimestamp","MetricName","Namespace","Statistic","Dimensions","Period","Unit","EvaluationPeriods","Threshold","ComparisonOperator","ExtendedStatistic","TreatMissingData","EvaluateLowSampleCountPercentile","DatapointsToAlarm","Metrics","ThresholdMetricId"]}},"S1v":{"type":"list","member":{"type":"structure","required":["Id"],"members":{"Id":{},"MetricStat":{"type":"structure","required":["Metric","Period","Stat"],"members":{"Metric":{"shape":"S1z"},"Period":{"type":"integer"},"Stat":{},"Unit":{}}},"Expression":{},"Label":{},"ReturnData":{"type":"boolean"},"Period":{"type":"integer"}}}},"S1z":{"type":"structure","members":{"Namespace":{},"MetricName":{},"Dimensions":{"shape":"S7"}},"xmlOrder":["Namespace","MetricName","Dimensions"]},"S2b":{"type":"structure","members":{"ExcludedTimeRanges":{"type":"list","member":{"type":"structure","required":["StartTime","EndTime"],"members":{"StartTime":{"type":"timestamp"},"EndTime":{"type":"timestamp"}},"xmlOrder":["StartTime","EndTime"]}},"MetricTimezone":{}}},"S3q":{"type":"list","member":{"type":"structure","members":{"Code":{},"Value":{}}}},"S4m":{"type":"list","member":{"type":"structure","required":["Key","Value"],"members":{"Key":{},"Value":{}}}}}};
 
 /***/ }),
 
@@ -14181,6 +14259,13 @@ function Api(api, options) {
   function addEndpointOperation(name, operation) {
     if (operation.endpointoperation === true) {
       property(self, 'endpointOperation', util.string.lowerFirst(name));
+    }
+    if (operation.endpointdiscovery && !self.hasRequiredEndpointDiscovery) {
+      property(
+        self,
+        'hasRequiredEndpointDiscovery',
+        operation.endpointdiscovery.required === true
+      );
     }
   }
 
@@ -19500,8 +19585,8 @@ function signedUrlSigner(request) {
   var auth = request.httpRequest.headers['Authorization'].split(' ');
   if (auth[0] === 'AWS') {
     auth = auth[1].split(':');
-    queryParams['AWSAccessKeyId'] = auth[0];
-    queryParams['Signature'] = auth[1];
+    queryParams['Signature'] = auth.pop();
+    queryParams['AWSAccessKeyId'] = auth.join(':');
 
     AWS.util.each(request.httpRequest.headers, function (key, value) {
       if (key === expiresHeader) key = 'Expires';
@@ -20457,19 +20542,14 @@ function requiredDiscoverEndpoint(request, done) {
     }]);
     endpointRequest.send(function(err, data) {
       if (err) {
-        var errorParams = {
-          code: 'EndpointDiscoveryException',
-          message: 'Request cannot be fulfilled without specifying an endpoint',
-          retryable: false
-        };
-        request.response.error = util.error(err, errorParams);
+        request.response.error = util.error(err, { retryable: false });
         AWS.endpointCache.remove(cacheKey);
 
         //fail all the pending requests in batch
         if (requestQueue[cacheKeyStr]) {
           var pendingRequests = requestQueue[cacheKeyStr];
           util.arrayEach(pendingRequests, function(requestContext) {
-            requestContext.request.response.error = util.error(err, errorParams);
+            requestContext.request.response.error = util.error(err, { retryable: false });
             requestContext.callback();
           });
           delete requestQueue[cacheKeyStr];
@@ -20554,23 +20634,28 @@ function isFalsy(value) {
 }
 
 /**
- * If endpoint discovery should perform for this request when endpoint discovery is optional.
+ * If endpoint discovery should perform for this request when no operation requires endpoint
+ * discovery for the given service.
  * SDK performs config resolution in order like below:
- * 1. If turned on client configuration(default to off) then turn on endpoint discovery.
- * 2. If turned on in env AWS_ENABLE_ENDPOINT_DISCOVERY then turn on endpoint discovery.
- * 3. If turned on in shared ini config file with key 'endpoint_discovery_enabled', then
- *   turn on endpoint discovery.
+ * 1. If set in client configuration.
+ * 2. If set in env AWS_ENABLE_ENDPOINT_DISCOVERY.
+ * 3. If set in shared ini config file with key 'endpoint_discovery_enabled'.
  * @param [object] request request object.
+ * @returns [boolean|undefined] if endpoint discovery config is not set in any source, this
+ *  function returns undefined
  * @api private
  */
-function isEndpointDiscoveryEnabled(request) {
+function resolveEndpointDiscoveryConfig(request) {
   var service = request.service || {};
-  if (service.config.endpointDiscoveryEnabled === true) return true;
+  if (service.config.endpointDiscoveryEnabled !== undefined) {
+    return service.config.endpointDiscoveryEnabled;
+  }
 
   //shared ini file is only available in Node
   //not to check env in browser
-  if (util.isBrowser()) return false;
+  if (util.isBrowser()) return undefined;
 
+  // If any of recognized endpoint discovery config env is set
   for (var i = 0; i < endpointDiscoveryEnabledEnvs.length; i++) {
     var env = endpointDiscoveryEnabledEnvs[i];
     if (Object.prototype.hasOwnProperty.call(process.env, env)) {
@@ -20580,7 +20665,7 @@ function isEndpointDiscoveryEnabled(request) {
           message: 'environmental variable ' + env + ' cannot be set to nothing'
         });
       }
-      if (!isFalsy(process.env[env])) return true;
+      return !isFalsy(process.env[env]);
     }
   }
 
@@ -20601,9 +20686,9 @@ function isEndpointDiscoveryEnabled(request) {
         message: 'config file entry \'endpoint_discovery_enabled\' cannot be set to nothing'
       });
     }
-    if (!isFalsy(sharedFileConfig.endpoint_discovery_enabled)) return true;
+    return !isFalsy(sharedFileConfig.endpoint_discovery_enabled);
   }
-  return false;
+  return undefined;
 }
 
 /**
@@ -20618,27 +20703,35 @@ function discoverEndpoint(request, done) {
   var operations = service.api.operations || {};
   var operationModel = operations[request.operation];
   var isEndpointDiscoveryRequired = operationModel ? operationModel.endpointDiscoveryRequired : 'NULL';
-  var isEnabled = isEndpointDiscoveryEnabled(request);
-
-  if (!isEnabled) {
-    // Unless endpoint discovery is required, SDK will fallback to normal regional endpoints.
-    if (isEndpointDiscoveryRequired === 'REQUIRED') {
-      throw util.error(new Error(), {
-        code: 'ConfigurationException',
-        message: 'Endpoint Discovery is not enabled but this operation requires it.'
-      });
-    }
-    return done();
+  var isEnabled = resolveEndpointDiscoveryConfig(request);
+  var hasRequiredEndpointDiscovery = service.api.hasRequiredEndpointDiscovery;
+  if (isEnabled || hasRequiredEndpointDiscovery) {
+    // Once a customer enables endpoint discovery, the SDK should start appending
+    // the string endpoint-discovery to the user-agent on all requests.
+    request.httpRequest.appendToUserAgent('endpoint-discovery');
   }
-
-  request.httpRequest.appendToUserAgent('endpoint-discovery');
   switch (isEndpointDiscoveryRequired) {
     case 'OPTIONAL':
-      optionalDiscoverEndpoint(request);
-      request.addNamedListener('INVALIDATE_CACHED_ENDPOINTS', 'extractError', invalidateCachedEndpoints);
+      if (isEnabled || hasRequiredEndpointDiscovery) {
+        // For a given service; if at least one operation requires endpoint discovery then the SDK must enable endpoint discovery
+        // by default for all operations of that service, including operations where endpoint discovery is optional.
+        optionalDiscoverEndpoint(request);
+        request.addNamedListener('INVALIDATE_CACHED_ENDPOINTS', 'extractError', invalidateCachedEndpoints);
+      }
       done();
       break;
     case 'REQUIRED':
+      if (isEnabled === false) {
+        // For a given operation; if endpoint discovery is required and it has been disabled on the SDK client,
+        // then the SDK must return a clear and actionable exception.
+        request.response.error = util.error(new Error(), {
+          code: 'ConfigurationException',
+          message: 'Endpoint Discovery is disabled but ' + service.api.className + '.' + request.operation +
+                    '() requires it. Please check your configurations.'
+        });
+        done();
+        break;
+      }
       request.addNamedListener('INVALIDATE_CACHED_ENDPOINTS', 'extractError', invalidateCachedEndpoints);
       requiredDiscoverEndpoint(request, done);
       break;

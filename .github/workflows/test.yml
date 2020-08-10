@@ -24,6 +24,29 @@ jobs:
         node-version: '12.x'
     - run: .github/workflows/build-and-test.sh
 
+  test_metrics_file_input:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:bionic
+    if: ${{ ! github.event.repository.fork && ! github.event.pull_request.head.repo.fork }}
+    steps:
+    # Run with a valid metrics JSON file just to make sure that it doesn't crash when doing so
+    - uses: actions/checkout@v2
+    - uses: actions/setup-node@v1
+      with:
+        node-version: '12.x'
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    - run: .github/workflows/generate-metrics-file.sh
+    - uses: ./
+      with:
+        namespace: ActionCloudWatchMetricsTests
+        metric-data: metrics.json
+
   log_workflow_status_to_cloudwatch:
     runs-on: ubuntu-latest
     container:

@@ -16,6 +16,8 @@ describe("unit test suite", () => {
 					return "1.0";
 				case "metric-dimensions":
 					return "[]";
+				case "metric-data":
+					return "";
 			}
 			throw new Error("unknown input");
 		});

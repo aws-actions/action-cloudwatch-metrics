@@ -24,6 +24,12 @@ inputs:
         { "Name": "github.ref", "Value": "${{ github.ref }}" },
         { "Name": "github.repository", "Value": "${{ github.repository }}" }
       ]
+  metric-data:
+    description: >-
+      Path to a JSON file containing CloudWatch-compatible metrics, according to
+      https://awscli.amazonaws.com/v2/documentation/api/latest/reference/cloudwatch/put-metric-data.html
+      If this input is specified, the action will ignore the single-value inputs "metric-name", "metric-value", "metric-dimensions" and only publish the data from this file.
+    required: false
 
   namespace:
     description: 'The namespace for the metric data.'
