@@ -1,6 +1,6 @@
 {
   "name": "action-cloudwatch-metrics",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Github Action to report the status of a workflow to CloudWatch Metrics",
   "main": "dist/index.js",
   "scripts": {
